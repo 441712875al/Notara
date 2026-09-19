@@ -18,7 +18,9 @@ test('打开工作区 → 编辑 → 自动保存 → 导出 HTML', async () => 
   await cp(fixture, ws, { recursive: true })
 
   const app: ElectronApplication = await _electron.launch({
-    args: [join(repoRoot, '.')], // package.json main → out/main/index.js
+    // --user-data-dir：把 userData（recent.json / window-state.json / themes 等）
+    // 隔离进本次 temp 工作区，避免污染开发者真实 ~/Library/Application Support/notara
+    args: [join(repoRoot, '.'), `--user-data-dir=${join(ws, '.userdata')}`],
     env: { ...process.env, NOTARA_OPEN: ws }
   })
   const page: Page = await app.firstWindow()
