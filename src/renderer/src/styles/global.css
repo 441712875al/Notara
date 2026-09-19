@@ -29,3 +29,8 @@ body {
 .btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 13px; }
 .btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
 .btn-danger { background: #d64545; color: #fff; border-color: transparent; }
+/* 编辑器 */
+.editors { flex: 1; min-height: 0; overflow: hidden; }
+.app { display: flex; flex-direction: column; height: 100%; }
+.editors .vditor { --panel-background-color: var(--bg); }
+.editors .vditor-ir pre.vditor-reset { font-family: inherit; }

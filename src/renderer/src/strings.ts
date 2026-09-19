@@ -10,7 +10,7 @@ export const s = {
   },
   confirm: {
     closeDirtyTitle: '未保存的修改',
-    closeDirtyText: (n: number) => `「${n}」有未保存的修改，关闭前保存吗？`,
+    closeDirtyText: (n: string) => `「${n}」有未保存的修改，关闭前保存吗？`,
     save: '保存', discard: '不保存', cancel: '取消',
     deleteTitle: '删除', deleteText: (n: string) => `确定将「${n}」移入废纸篓吗？`,
     useDiskTitle: '文件已在磁盘上被修改',
@@ -19,6 +19,7 @@ export const s = {
   toast: {
     saveFailed: '保存失败，已保留修改稍后重试',
     binaryFile: '不是文本文件，无法打开',
+    openFailed: (msg: string) => `打开失败: ${msg}`,
     deletedFile: '文件已被删除，保存时将提示另存为',
   },
   tree: {
