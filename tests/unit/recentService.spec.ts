@@ -17,6 +17,7 @@ describe('recentService', () => {
     for (let i = 0; i < 12; i++) {
       await touchRecent(`/w/${i}`)
     }
+    await new Promise((r) => setTimeout(r, 5)) // 保证重 touch 的时间戳严格大于循环末项（Date.now 毫秒分辨率）
     await touchRecent('/w/5') // 提升优先级
     const list = await listRecent()
     expect(list).toHaveLength(10)

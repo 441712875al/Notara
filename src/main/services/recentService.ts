@@ -26,5 +26,6 @@ export async function touchRecent(root: string): Promise<void> {
 
 export async function removeRecent(root: string): Promise<void> {
   const list = (await listRecent()).filter((r) => r.root !== root)
+  await fs.mkdir(path.dirname(file()), { recursive: true })
   await fs.writeFile(file(), JSON.stringify(list, null, 2), 'utf8')
 }
