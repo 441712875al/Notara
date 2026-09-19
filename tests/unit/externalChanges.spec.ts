@@ -56,6 +56,28 @@ describe('handleExternalChange', () => {
     expect(useUi.getState().confirm).toBeNull()
     saveScheduler.cancel(id)
   })
+
+  it('readFile 挂起期间标签变脏则放弃重载（不覆盖用户输入）', async () => {
+    useTabs.getState().openFile('/w/d.md', 'old')
+    const id = useTabs.getState().tabs[0].id
+    const setValue = vi.fn()
+    editors.set(id, { setValue, getValue: () => '' } as never)
+
+    let resolveRead!: (v: { content: string; mtime: number }) => void
+    vi.mocked(api.readFile).mockReturnValue(
+      new Promise<{ content: string; mtime: number }>((res) => {
+        resolveRead = res
+      })
+    )
+
+    const pending = handleExternalChange('/w/d.md')
+    // 挂起期间用户开始输入：标签置脏并调度保存
+    useTabs.getState().setDirty(id, true)
+    resolveRead({ content: 'disk', mtime: 3 })
+    await pending
+    expect(setValue).not.toHaveBeenCalled()
+    editors.clear()
+  })
 })
 
 describe('handleExternalDelete', () => {
@@ -69,5 +91,13 @@ describe('handleExternalDelete', () => {
     handleExternalDelete('/w/a.md')
     expect(useTabs.getState().tabs[0].deleted).toBe(true)
     expect(useUi.getState().toasts[0]?.text).toContain('删除')
+  })
+
+  it('未打开的 path 被删：不 toast 也不改 tabs', () => {
+    useTabs.getState().openFile('/w/a.md', 'x')
+    handleExternalDelete('/w/other.md')
+    expect(useUi.getState().toasts).toHaveLength(0)
+    expect(useTabs.getState().tabs).toHaveLength(1)
+    expect(useTabs.getState().tabs[0].deleted).toBe(false)
   })
 })

@@ -11,4 +11,11 @@ describe('ConflictModal', () => {
     fireEvent.click(screen.getByTestId('conflict-keep'))
     expect(keep).toHaveBeenCalled()
   })
+
+  it('点击「使用磁盘版本」触发 onUseDisk', () => {
+    const onUseDisk = vi.fn()
+    render(<ConflictModal path="/w/a.md" onKeepMine={vi.fn()} onUseDisk={onUseDisk} />)
+    fireEvent.click(screen.getByTestId('conflict-disk'))
+    expect(onUseDisk).toHaveBeenCalledTimes(1)
+  })
 })
