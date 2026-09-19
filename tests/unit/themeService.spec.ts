@@ -52,4 +52,15 @@ describe('themeService', () => {
     const info = await svc.getThemeInfo()
     expect(info.setting).toBe('system')
   })
+
+  it('内置保留名（dark/light/system）同名 css 不列入自定义主题', async () => {
+    const dir = join(userData, 'themes')
+    await mkdir(dir, { recursive: true })
+    await writeFile(join(dir, 'dark.css'), ':root{}', 'utf8')
+    await writeFile(join(dir, 'light.css'), ':root{}', 'utf8')
+    await writeFile(join(dir, 'system.css'), ':root{}', 'utf8')
+    await writeFile(join(dir, 'brand.css'), ':root{}', 'utf8')
+    const info = await svc.getThemeInfo()
+    expect(info.customThemes).toEqual([{ name: 'brand' }])
+  })
 })

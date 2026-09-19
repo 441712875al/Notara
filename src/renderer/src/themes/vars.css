@@ -7,17 +7,15 @@ html[data-theme='dark'] {
   --bg: #1e1e20; --bg-elevated: #2a2a2d; --fg: #e8e8ea; --fg-secondary: #98989d;
   --border: #3a3a3e; --accent: #5c8dff;
 }
-/* vditor 暗色联动（覆盖其面板变量） */
+/* vditor 暗色联动：仅覆盖「面板/文本区与应用 chrome 保持一致」的变量。
+   vditor 3.11.3 未定义 --ir-heading-border-color/--ir-blockquote-color/--ir-code-color/--ir-table-border-color，
+   故不再覆盖；IR 内容色（bracket/paren/blockquote/heading-border 等）由 .vditor--dark 内置主题提供（见 stores/theme.ts）。 */
 html[data-theme='dark'] .vditor {
   --panel-background-color: var(--bg-elevated);
   --textarea-background-color: var(--bg);
   --textarea-text-color: var(--fg);
   --border-color: var(--border);
-  --ir-heading-border-color: var(--border);
   --ir-bi-color: var(--fg-secondary);
   --ir-heading-color: var(--fg);
   --ir-link-color: var(--accent);
-  --ir-blockquote-color: var(--fg-secondary);
-  --ir-code-color: var(--fg-secondary);
-  --ir-table-border-color: var(--border);
 }

@@ -49,6 +49,11 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
           return
         }
         editors.set(tabId, vd)
+        // 暗色用户开新标签：初始化即补 .vditor--dark（applyThemeToDom 只在切主题时刷新），
+        // 避免编辑器先亮后黑。
+        if (document.documentElement.dataset.theme === 'dark') {
+          vd.vditor.element.classList.add('vditor--dark')
+        }
         if (activeRef.current) vd.focus()
       }
     })

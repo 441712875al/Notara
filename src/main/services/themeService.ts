@@ -3,6 +3,9 @@ import * as path from 'node:path'
 import { app, nativeTheme } from 'electron'
 import type { ThemeInfo, ThemeSetting } from '@shared/types'
 
+// 内置主题保留名：themes/ 下的同名 css 会被 buildInfo 视为内置而不读取，故不列入自定义主题
+const RESERVED_THEME_NAMES = ['system', 'light', 'dark']
+
 /**
  * 主题服务：设置持久化（userData/settings.json）+ 自定义主题扫描（userData/themes/*.css）。
  * 目录通过 dirProvider 注入，便于纯逻辑单测；应用内使用文件末尾的单例。
@@ -38,6 +41,7 @@ export function createThemeService(userDataDir: () => string) {
       return files
         .filter((f) => f.endsWith('.css'))
         .map((f) => ({ name: f.slice(0, -4) }))
+        .filter((t) => !RESERVED_THEME_NAMES.includes(t.name))
         .sort((a, b) => a.name.localeCompare(b.name))
     } catch {
       return []
@@ -56,7 +60,7 @@ export function createThemeService(userDataDir: () => string) {
     let s = setting
     const dark = nativeTheme.shouldUseDarkColors
     let customCss: string | null = null
-    if (s !== 'system' && s !== 'light' && s !== 'dark') {
+    if (s !== 'system' && !RESERVED_THEME_NAMES.includes(s)) {
       customCss = await readCustomCss(s)
       if (customCss === null) {
         s = 'system' // 自定义主题文件丢失，回落跟随系统

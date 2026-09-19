@@ -8,6 +8,10 @@ import { api } from '../lib/api'
  */
 export function applyThemeToDom(info: ThemeInfo): void {
   document.documentElement.dataset.theme = info.effective
+  // vditor 自带成套暗色主题 .vditor--dark（IR 括号/引号/标题边框/引用/callout 等），
+  // 暗色时给所有编辑器容器加类启用，亮色时移除（无需手写逐个变量覆盖）。
+  const dark = info.effective === 'dark'
+  document.querySelectorAll('.vditor').forEach((el) => el.classList.toggle('vditor--dark', dark))
   document.getElementById('custom-theme-style')?.remove()
   if (info.customCss) {
     const style = document.createElement('style')
@@ -20,7 +24,7 @@ export function applyThemeToDom(info: ThemeInfo): void {
 interface ThemeStore {
   setting: ThemeSetting
   effective: 'light' | 'dark'
-  customCss?: string | null
+  customCss: string | null
   customThemes: { name: string }[]
   init: () => Promise<void>
   set: (setting: ThemeSetting) => Promise<void>
