@@ -4,6 +4,7 @@ import {
   readFileSafe, writeFileAtomic, createEntry, renamePath, deleteToTrash
 } from '../services/fileService'
 import { ensureDirWatched } from '../services/watchService'
+import { quitPendingDialog } from '../quit'
 import * as nodePath from 'node:path'
 
 export function registerFilesIpc(): void {
@@ -29,6 +30,9 @@ export function registerFilesIpc(): void {
   registerIpc(Channels.FilesDelete, async (p: { path: string }) => deleteToTrash(p.path))
 
   registerIpc(Channels.FilesSaveAs, async (p: { suggestedName: string; content: string }) => {
+    // 退出确认期间渲染侧逐个弹另存为对话框，此处每次进入前重置 60s 兜底计时，
+    // 避免计时到点强退杀掉对话框与未保存内容（无握手进行中时该调用幂等空转）
+    quitPendingDialog()
     const win = BrowserWindow.getFocusedWindow()
     const options = {
       defaultPath: p.suggestedName,

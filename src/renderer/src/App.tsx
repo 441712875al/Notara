@@ -139,20 +139,17 @@ export function App() {
   useEffect(() => {
     const off = api.onEvent((event: MainEvent) => {
       if (event.type === 'app:flush-before-quit') {
-        // ⌘Q：先静默落盘已命名标签；仍有脏标签（flush 失败的已命名标签、未命名/已删除标签）则弹确认
+        // ⌘Q：立即撤销主进程 3s 强退兜底、改挂 60s 等待用户；慢盘上 flushAll 超 3s 会被中途强退，
+        // 故必须先武装计时再落盘。随后静默落盘已命名标签，仍有脏标签则弹确认
         void (async () => {
+          // 忽略失败：主进程超时兜底仍会退出
+          await api.quitPending().catch(() => {})
           await saveScheduler.flushAll()
           const dirty = useTabs.getState().tabs.filter((t) => t.dirty)
           if (dirty.length === 0) {
             persistWindowState()
             void api.flushDone().catch(() => {})
             return
-          }
-          // 有未保存内容：撤销主进程 3s 强退兜底，改由用户决定（渲染侧崩溃仍有 60s 兜底）
-          try {
-            await api.quitPending()
-          } catch {
-            /* 忽略：主进程超时兜底仍会退出 */
           }
           confirmDirtyExit(
             () => {
@@ -349,7 +346,9 @@ export function App() {
         text: s.confirm.discard,
         onDiscard: () => {
           saveScheduler.cancel(tab.id)
-          useTabs.getState().close(index)
+          // 弹窗存续期间列表可能已变，按 tab.id 重新定位再关（与 onConfirm 对称）
+          const cur = useTabs.getState().tabs.findIndex((t) => t.id === tab.id)
+          if (cur >= 0) useTabs.getState().close(cur)
         }
       }
       // 不传 onCancel → 「取消」= 不关标签，什么都不做
