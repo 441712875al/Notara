@@ -63,7 +63,8 @@ export const useUi = create<UiState>((set, get) => ({
     // 先 set 再回调：onCancel 内若同步读 state 应拿到新值而非被顶替的旧值。
     const prev = get().confirm
     set({ confirm: req })
-    prev?.onCancel?.() // 未定义 onCancel 的旧请求（如外部冲突弹窗）为无操作
+    prev?.onCancel?.() // 无 onCancel 的旧请求为无操作；有 onCancel 的（如外部冲突弹窗
+    // 的二次确认链）会在新槽位上再弹一次，链深有界（≤2），无无限递归
   },
   resolveConfirm(ok) {
     const c = get().confirm
