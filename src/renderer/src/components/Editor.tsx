@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 import { editors } from '../lib/editorRegistry'
+import { attachImageHandlers } from '../lib/imagePaste'
 
 interface EditorProps {
   tabId: number
@@ -51,8 +52,11 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
         if (activeRef.current) vd.focus()
       }
     })
+    // 图片粘贴/拖拽：此处同步挂载即可（事件触发时 vd 已 ready），用 tabId 定位笔记目录
+    const detachImageHandlers = attachImageHandlers(vd, host, tabId)
     return () => {
       disposed = true
+      detachImageHandlers()
       editors.delete(tabId)
       mount.remove()
       if (ready) vd.destroy() // 未就绪则交由 after 补销毁（此时 mount 已脱离文档，销毁无副作用）

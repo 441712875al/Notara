@@ -23,6 +23,8 @@ export const s = {
     binaryFile: '不是文本文件，无法打开',
     openFailed: (msg: string) => `打开失败: ${msg}`,
     deletedFile: '文件已被删除，保存时将提示另存为',
+    saveImageFirst: '请先保存文件，再粘贴图片',
+    imageSaveFailed: (msg: string) => `图片保存失败: ${msg}`,
   },
   tree: {
     newFile: '新建文件', newFolder: '新建文件夹', rename: '重命名', del: '删除',
