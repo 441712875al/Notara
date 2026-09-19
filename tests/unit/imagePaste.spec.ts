@@ -6,6 +6,7 @@ import {
 } from '../../src/renderer/src/lib/imagePaste'
 import { useTabs } from '../../src/renderer/src/stores/tabs'
 import { useUi } from '../../src/renderer/src/stores/ui'
+import { editors } from '../../src/renderer/src/lib/editorRegistry'
 import { s } from '../../src/renderer/src/strings'
 
 vi.mock('../../src/renderer/src/lib/api', () => ({
@@ -62,6 +63,7 @@ describe('insertImageFromFile', () => {
   beforeEach(() => {
     useTabs.setState({ tabs: [], activeIndex: -1 })
     useUi.setState({ toasts: [] })
+    editors.clear()
     vi.clearAllMocks()
   })
 
@@ -84,16 +86,39 @@ describe('insertImageFromFile', () => {
     expect(lastToast()).toBe(s.toast.saveImageFirst)
   })
 
-  it('正常保存：以正确参数调 IPC，并按换行包裹的相对路径插入', async () => {
+  it('正常保存：以正确参数调 IPC，含空格路径按段百分号编码后插入', async () => {
     useTabs.getState().openFile('/w/notes/a.md', 'x')
     const tabId = useTabs.getState().tabs[0].id
-    vi.mocked(api.saveImage).mockResolvedValue({ relativePath: 'assets/a-1-ab12.png' })
+    vi.mocked(api.saveImage).mockResolvedValue({ relativePath: 'assets/Screenshot 2026.png' })
     const vd = fakeVd()
+    editors.set(tabId, vd as never)
     const buf = new ArrayBuffer(4)
     const r = await insertImageFromFile(vd as never, fakeFile('a.png', 'image/png', buf), tabId)
     expect(r).toBe(true)
     expect(api.saveImage).toHaveBeenCalledWith('/w/notes', buf, 'a.png', 'png')
-    expect(vd.insertValue).toHaveBeenCalledWith('\n![](assets/a-1-ab12.png)\n')
+    expect(vd.insertValue).toHaveBeenCalledWith('\n![](assets/Screenshot%202026.png)\n')
+  })
+
+  it('中文文件名：编码为 UTF-8 百分号序列（每段单独编码，/ 不转义）', async () => {
+    useTabs.getState().openFile('/w/notes/a.md', 'x')
+    const tabId = useTabs.getState().tabs[0].id
+    vi.mocked(api.saveImage).mockResolvedValue({ relativePath: 'assets/截屏.png' })
+    const vd = fakeVd()
+    editors.set(tabId, vd as never)
+    const r = await insertImageFromFile(vd as never, fakeFile('a.png', 'image/png'), tabId)
+    expect(r).toBe(true)
+    expect(vd.insertValue).toHaveBeenCalledWith('\n![](assets/%E6%88%AA%E5%B1%8F.png)\n')
+  })
+
+  it('实例已销毁：IPC 成功后不再插入（幽灵写入守卫），仍返回 true', async () => {
+    useTabs.getState().openFile('/w/notes/a.md', 'x')
+    const tabId = useTabs.getState().tabs[0].id
+    vi.mocked(api.saveImage).mockResolvedValue({ relativePath: 'assets/a-1-ab12.png' })
+    const vd = fakeVd()
+    // 不注册到 editors：模拟 await 期间标签已关闭（destroy 后 editors.delete）
+    const r = await insertImageFromFile(vd as never, fakeFile('a.png', 'image/png'), tabId)
+    expect(r).toBe(true)
+    expect(vd.insertValue).not.toHaveBeenCalled()
   })
 
   it('IPC 失败：toast 报错，返回 true 且不插入', async () => {

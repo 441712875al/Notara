@@ -1,5 +1,6 @@
 import type Vditor from 'vditor'
 import { api } from './api'
+import { editors } from './editorRegistry'
 import { useTabs } from '../stores/tabs'
 import { useUi } from '../stores/ui'
 import { s } from '../strings'
@@ -49,7 +50,11 @@ export async function insertImageFromFile(vd: Vditor, file: File, tabId: number)
   try {
     const data = await file.arrayBuffer()
     const { relativePath } = await api.saveImage(refDir, data, file.name, extFromMime(file.type))
-    vd.insertValue(`\n![](${relativePath})\n`)
+    // 两次 await（arrayBuffer + IPC）期间标签可能已关闭：销毁后 insertValue 写入脱挂 DOM 属幽灵写入，直接跳过
+    if (editors.get(tabId) !== vd) return true
+    // 按段百分号编码：含空格/括号/#/中文等路径在 Lute 中不编码则不渲染；每段单独编码后用 / 重连，分隔符不转义
+    const encoded = relativePath.split('/').map(encodeURIComponent).join('/')
+    vd.insertValue(`\n![](${encoded})\n`)
     return true
   } catch (e) {
     useUi.getState().notify(s.toast.imageSaveFailed((e as Error).message))
@@ -67,7 +72,10 @@ export function attachImageHandlers(vd: Vditor, host: HTMLElement, tabId: number
     if (imgs.length === 0) return // 非图片：不拦截，走默认粘贴/拖拽
     e.preventDefault()
     e.stopPropagation()
-    for (const f of imgs) void insertImageFromFile(vd, f, tabId)
+    // 顺序执行：并发 IPC 完成顺序不定会导致多图插入乱序
+    void (async () => {
+      for (const f of imgs) await insertImageFromFile(vd, f, tabId)
+    })()
   }
   const onPaste = (e: ClipboardEvent): void => consume(e, e.clipboardData)
   const onDrop = (e: DragEvent): void => consume(e, e.dataTransfer)
