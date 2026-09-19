@@ -3,7 +3,7 @@ import { registerIpc, Channels } from './index'
 import { consumeLaunchOpen } from '../index'
 import { installMenu } from '../menu'
 import { stateService } from '../window'
-import { ackFlushDone } from '../quit'
+import { ackFlushDone, cancelQuit, quitPendingDialog } from '../quit'
 import { themeService } from '../services/themeService'
 import type { OpenDialogResult, ThemeSetting, WindowStatePayload } from '@shared/types'
 
@@ -34,6 +34,18 @@ export function registerAppIpc(): void {
   // 退出握手：渲染侧 flush 完成后 ack，主进程在收齐（或超时）后退出
   registerIpc(Channels.AppFlushDone, async (_p: unknown, event) => {
     ackFlushDone(event.sender.id)
+    return null
+  })
+
+  // 退出握手：渲染侧将弹未保存确认框 → 撤销 3s 强退兜底，改 60s 等待用户
+  registerIpc(Channels.AppQuitPending, async () => {
+    quitPendingDialog()
+    return null
+  })
+
+  // 退出握手：用户取消退出 → 中止本次退出，应用保持运行
+  registerIpc(Channels.AppQuitCancel, async () => {
+    cancelQuit()
     return null
   })
 

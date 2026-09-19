@@ -122,6 +122,8 @@ export interface NotaraApi {
   // 应用生命周期
   flushDone(): Promise<void>
   allowClose(): Promise<void>
+  quitPending(): Promise<void>
+  quitCancel(): Promise<void>
   getWindowState(): Promise<WindowState | null>
   saveWindowState(state: WindowStatePayload): Promise<void>
   // 事件

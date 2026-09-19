@@ -23,6 +23,8 @@ export const Channels = {
   ThemeSet: 'theme:set',
   AppFlushDone: 'app:flush-done',
   AppAllowClose: 'app:allow-close',
+  AppQuitPending: 'app:quit-pending',
+  AppQuitCancel: 'app:quit-cancel',
   AppGetLaunchOpen: 'app:get-launch-open',
   AppGetWindowState: 'app:get-window-state',
   AppSaveWindowState: 'app:save-window-state'

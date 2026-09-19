@@ -27,8 +27,49 @@ function persistWindowState(): void {
   const tabs = useTabs.getState()
   void api.saveWindowState({
     workspaceRoot: ws.root,
-    tabPaths: tabs.tabs.map((t) => t.path).filter((p): p is string => p !== null),
+    // 已删除标签的文件已进废纸篓（deleted 标记），不该在下次启动时恢复
+    tabPaths: tabs.tabs
+      .filter((t) => !t.deleted)
+      .map((t) => t.path)
+      .filter((p): p is string => p !== null),
     activeIndex: tabs.activeIndex
+  })
+}
+
+/**
+ * 退出/关闭共用的未保存确认流程（调用方已完成一次 flushAll 且判定存在脏标签）。
+ * - finish：用户选择「保存」且全部落盘成功、或显式选择「不保存」后执行
+ *   （quit 路径 = 持久化 + flushDone；close 路径 = 持久化 + allowClose）
+ * - abort：保存失败 / 用户取消导致中止时执行
+ *   （quit 路径 = 撤销退出；close 路径 = 保持窗口打开，不发任何 IPC）
+ * 「不保存」为显式选择，直接 finish（允许丢失）；「取消」走 abort。
+ */
+function confirmDirtyExit(finish: () => void, abort: () => void): void {
+  const dirty = useTabs.getState().tabs.filter((t) => t.dirty)
+  useUi.getState().askConfirm({
+    title: s.confirm.closeDirtyTitle,
+    text: s.confirm.closeManyText(dirty.length),
+    confirmText: s.confirm.save,
+    discard: { text: s.confirm.discard, onDiscard: finish },
+    onConfirm: () => {
+      void (async () => {
+        // 未命名/已删除标签（无落盘路径）逐个另存为；任一取消或失败即中止
+        // （失败 toast 已由 saveTabAs 自身发出，此处不重复提示）
+        for (const t of dirty.filter((t) => t.path === null || t.deleted)) {
+          const r = await saveTabAs(t)
+          if (r !== 'saved') return abort()
+        }
+        await saveScheduler.flushAll() // 已命名脏标签落盘（单个失败不阻断其余）
+        // 写盘复查：仍有已命名脏标签说明落盘失败，不得放行
+        const stillDirty = useTabs
+          .getState()
+          .tabs.some((t) => t.dirty && t.path !== null && !t.deleted)
+        if (stillDirty) return abort()
+        finish()
+      })()
+    },
+    // 「取消」按钮走 abort（quit 路径撤销退出；close 路径不发 IPC 保持窗口打开）
+    onCancel: abort
   })
 }
 
@@ -98,12 +139,32 @@ export function App() {
   useEffect(() => {
     const off = api.onEvent((event: MainEvent) => {
       if (event.type === 'app:flush-before-quit') {
-        // ⌘Q：静默落盘已命名标签后 ack。未命名标签无落盘路径（flushAll 空转），
-        // 退出路径不拦截，仅在关闭按钮路径弹另存为确认。
-        void saveScheduler.flushAll().then(() => {
-          persistWindowState()
-          void api.flushDone()
-        })
+        // ⌘Q：先静默落盘已命名标签；仍有脏标签（flush 失败的已命名标签、未命名/已删除标签）则弹确认
+        void (async () => {
+          await saveScheduler.flushAll()
+          const dirty = useTabs.getState().tabs.filter((t) => t.dirty)
+          if (dirty.length === 0) {
+            persistWindowState()
+            void api.flushDone().catch(() => {})
+            return
+          }
+          // 有未保存内容：撤销主进程 3s 强退兜底，改由用户决定（渲染侧崩溃仍有 60s 兜底）
+          try {
+            await api.quitPending()
+          } catch {
+            /* 忽略：主进程超时兜底仍会退出 */
+          }
+          confirmDirtyExit(
+            () => {
+              persistWindowState()
+              void api.flushDone().catch(() => {})
+            },
+            () => {
+              // 中止退出：应用继续运行
+              void api.quitCancel().catch(() => {})
+            }
+          )
+        })()
         return
       }
       if (event.type === 'app:close-requested') {
@@ -112,37 +173,18 @@ export function App() {
           const dirty = useTabs.getState().tabs.filter((t) => t.dirty)
           if (dirty.length === 0) {
             persistWindowState()
-            void api.allowClose()
+            void api.allowClose().catch(() => {})
             return
           }
-          useUi.getState().askConfirm({
-            title: s.confirm.closeDirtyTitle,
-            text: s.confirm.closeManyText(dirty.length),
-            confirmText: s.confirm.save,
-            discard: {
-              text: s.confirm.discard,
-              onDiscard: () => {
-                // 不保存：直接关闭
-                persistWindowState()
-                void api.allowClose()
-              }
+          confirmDirtyExit(
+            () => {
+              persistWindowState()
+              void api.allowClose().catch(() => {})
             },
-            onConfirm: () => {
-              void (async () => {
-                // 未命名/已删除标签（无落盘路径）逐个另存为；任一取消或失败则中止关闭
-                // （失败 toast 已由 saveTabAs 自身发出，此处不重复提示）
-                const unnamed = dirty.filter((t) => t.path === null || t.deleted)
-                for (const t of unnamed) {
-                  const r = await saveTabAs(t)
-                  if (r !== 'saved') return
-                }
-                await saveScheduler.flushAll() // 已命名脏标签落盘（单个失败不阻断其余）
-                persistWindowState()
-                await api.allowClose()
-              })()
+            () => {
+              // 中止关闭：close 已被 preventDefault，窗口保持打开，不发任何 IPC
             }
-            // 不传 onCancel → 「取消」中止关闭，窗口保持打开
-          })
+          )
         })()
         return
       }
@@ -225,7 +267,11 @@ export function App() {
   // 启动恢复：命令行参数（--open / NOTARA_OPEN）优先；无参数则恢复上次窗口状态（工作区 + 标签 + 激活项）。
   // getLaunchOpen 为一次性消费（主进程读后即清），因此两条流程必须在此同一 effect 内串行判断，
   // 拆成两个 effect 会因消费顺序导致命令行打开被吞掉。
+  // restoredRef 防重入：dev StrictMode 下 effect 双跑，第二次会因 launchOpen 已被消费而误走恢复分支、重复开标签。
+  const restoredRef = useRef(false)
   useEffect(() => {
+    if (restoredRef.current) return
+    restoredRef.current = true
     void (async () => {
       const launch = await api.getLaunchOpen()
       if (launch) {
@@ -246,7 +292,8 @@ export function App() {
       // 打开失败（已 toast 并回滚 root）：不再恢复标签，避免留下无工作区的游离标签
       if (useWorkspace.getState().root === null) return
       refreshRecents() // 恢复工作区同样是一次「打开」，重查最近列表以刷新排序
-      for (const tp of st.payload.tabPaths) await openPath(tp)
+      // 静默恢复：上次会话中已删除的文件逐个弹「打开失败」会打扰用户，失败仅跳过该标签
+      for (const tp of st.payload.tabPaths) await openPath(tp, { silent: true })
       const n = useTabs.getState().tabs.length
       if (st.payload.activeIndex >= 0 && n > 0) {
         useTabs.getState().setActive(Math.min(st.payload.activeIndex, n - 1))
