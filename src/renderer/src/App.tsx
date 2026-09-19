@@ -6,6 +6,7 @@ import { Editor } from './components/Editor'
 import { Sidebar } from './components/Sidebar'
 import { ContextMenu, type ContextMenuItem } from './components/ContextMenu'
 import { NamePromptModal } from './components/NamePromptModal'
+import { Welcome } from './components/Welcome'
 import { useTabs } from './stores/tabs'
 import { useUi } from './stores/ui'
 import { useWorkspace } from './stores/workspace'
@@ -17,7 +18,7 @@ import { handleMenuAction, saveTabAs } from './lib/menuActions'
 import { openPath } from './lib/openFile'
 import { handleExternalChange, handleExternalDelete } from './lib/externalChanges'
 import { resolveCreateEntry } from './lib/treeActions'
-import type { MainEvent, TreeNode } from '@shared/types'
+import type { MainEvent, RecentWorkspace, TreeNode } from '@shared/types'
 import { s } from './strings'
 
 export function App() {
@@ -29,6 +30,26 @@ export function App() {
   const outlineVisible = useUi((st) => st.outlineVisible)
   const confirm = useUi((st) => st.confirm)
   const root = useWorkspace((st) => st.root)
+
+  // 最近工作区：启动加载；每次成功打开工作区后重查（主进程在该 IPC 里 touchRecent）
+  const [recents, setRecents] = useState<RecentWorkspace[]>([])
+  const refreshRecents = (): void => void api.listRecent().then(setRecents)
+
+  useEffect(() => {
+    refreshRecents()
+  }, [])
+
+  // 欢迎页「打开文件夹」与菜单 File>Open 共用：对话框选中文件夹后重查最近列表
+  const openFolder = async (): Promise<void> => {
+    await handleMenuAction('open')
+    refreshRecents()
+  }
+
+  // 欢迎页点击最近项：open 已自带失败 toast 与回滚，成功后重查以刷新排序
+  const openRecent = async (r: string): Promise<void> => {
+    await useWorkspace.getState().open(r)
+    refreshRecents()
+  }
 
   // 保存管线：防抖/flush → 读 vditor 内容 → 写盘 → 清脏标记
   useEffect(() => {
@@ -60,7 +81,9 @@ export function App() {
   useEffect(() => {
     const off = api.onEvent((event: MainEvent) => {
       if (event.type === 'menu:action') {
-        void handleMenuAction(event.action)
+        // File>Open 选中文件夹会打开工作区并 touchRecent：走 openFolder 以便成功后重查
+        if (event.action === 'open') void openFolder()
+        else void handleMenuAction(event.action)
       } else if (event.type === 'workspace:tree-changed') {
         // 外部/树内增删改：刷新已加载目录的缓存
         const ws = useWorkspace.getState()
@@ -107,7 +130,10 @@ export function App() {
         () => 'folder' as const
       )
       if (stat === 'file') await openPath(p)
-      else await useWorkspace.getState().open(p)
+      else {
+        await useWorkspace.getState().open(p)
+        refreshRecents()
+      }
     })()
   }, [])
 
@@ -266,7 +292,14 @@ export function App() {
           onClose={handleClose}
           onNew={() => useTabs.getState().openUntitled()}
         />
-      ) : null}
+      ) : (
+        <Welcome
+          recents={recents}
+          onOpenFolder={() => void openFolder()}
+          onNewFile={() => void handleMenuAction('new-file')}
+          onOpenRecent={(r) => void openRecent(r)}
+        />
+      )}
       <div className="main-area">
         {sidebarVisible && root !== null ? (
           <Sidebar onOpenFile={(p) => void openPath(p)} onContext={openTreeContextMenu} />
