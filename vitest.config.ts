@@ -1,17 +1,20 @@
 import { defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
+const sharedAlias = {
+  '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
+  '@': fileURLToPath(new URL('./src/renderer/src', import.meta.url))
+}
+
 export default defineConfig({
   resolve: {
-    alias: {
-      '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
-      '@': fileURLToPath(new URL('./src/renderer/src', import.meta.url))
-    }
+    alias: sharedAlias
   },
   test: {
     passWithNoTests: true,
     projects: [
       {
+        resolve: { alias: sharedAlias },
         test: {
           name: 'unit',
           environment: 'node',
@@ -19,6 +22,7 @@ export default defineConfig({
         }
       },
       {
+        resolve: { alias: sharedAlias },
         test: {
           name: 'component',
           environment: 'jsdom',
