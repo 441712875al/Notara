@@ -51,8 +51,12 @@ export function broadcast(event: MainEvent): void {
 export function registerAllIpc(): void {
   registerAppIpc()
   registerFilesIpc()
+  registerWorkspaceIpc()
+  setNotifier(broadcast)
 }
 
 // 占位导入放文件末尾避免循环依赖问题
 import { registerAppIpc } from './app'
 import { registerFilesIpc } from './files'
+import { registerWorkspaceIpc } from './workspace'
+import { setNotifier } from '../services/watchService'

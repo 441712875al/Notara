@@ -3,9 +3,14 @@ import { Channels, registerIpc, broadcast } from './index'
 import {
   readFileSafe, writeFileAtomic, createEntry, renamePath, deleteToTrash
 } from '../services/fileService'
+import { ensureDirWatched } from '../services/watchService'
+import * as nodePath from 'node:path'
 
 export function registerFilesIpc(): void {
-  registerIpc(Channels.FilesRead, async (p: { path: string }) => readFileSafe(p.path))
+  registerIpc(Channels.FilesRead, async (p: { path: string }) => {
+    ensureDirWatched(nodePath.dirname(p.path))
+    return readFileSafe(p.path)
+  })
 
   registerIpc(Channels.FilesWrite, async (p: { path: string; content: string }) =>
     writeFileAtomic(p.path, p.content)
