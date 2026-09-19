@@ -9,7 +9,10 @@ export interface ConfirmRequest {
   title: string
   text: string
   confirmText: string
+  cancelText?: string
   danger?: boolean
+  /** 第三态「不保存」：存在时 ConfirmModal 渲染三按钮（discard 在最左） */
+  discard?: { text: string; onDiscard: () => void }
   onConfirm: () => void
   onCancel?: () => void
 }
@@ -21,6 +24,7 @@ interface UiState {
   confirm: ConfirmRequest | null
   askConfirm: (req: ConfirmRequest) => void
   resolveConfirm: (ok: boolean) => void
+  resolveDiscard: () => void
   sidebarVisible: boolean
   toggleSidebar: () => void
   outlineVisible: boolean
@@ -49,6 +53,11 @@ export const useUi = create<UiState>((set, get) => ({
     if (!c) return
     if (ok) c.onConfirm()
     else c.onCancel?.()
+  },
+  resolveDiscard() {
+    const c = get().confirm
+    set({ confirm: null })
+    c?.discard?.onDiscard()
   },
   sidebarVisible: true,
   toggleSidebar() {

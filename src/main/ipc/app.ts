@@ -1,5 +1,6 @@
 import { dialog, BrowserWindow } from 'electron'
 import { registerIpc, Channels } from './index'
+import { consumeLaunchOpen } from '../index'
 import type { OpenDialogResult } from '@shared/types'
 
 export function registerAppIpc(): void {
@@ -14,4 +15,7 @@ export function registerAppIpc(): void {
     if (!p) return null
     return { type: (await import('node:fs')).statSync(p).isDirectory() ? 'folder' : 'file', path: p }
   })
+
+  // 启动参数：一次性消费（读取后清空，避免窗口重载/新建窗口重复打开）
+  registerIpc(Channels.AppGetLaunchOpen, async () => consumeLaunchOpen())
 }

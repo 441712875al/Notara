@@ -1,12 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { TabBar } from './components/TabBar'
 import { ConfirmModal } from './components/ConfirmModal'
 import { Editor } from './components/Editor'
 import { useTabs } from './stores/tabs'
 import { useUi } from './stores/ui'
+import { useWorkspace } from './stores/workspace'
 import { api } from './lib/api'
 import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
+import { handleMenuAction } from './lib/menuActions'
+import { openPath } from './lib/openFile'
+import type { MainEvent } from '@shared/types'
 import { s } from './strings'
 
 export function App() {
@@ -41,6 +45,28 @@ export function App() {
     return () => window.removeEventListener('blur', onBlur)
   }, [])
 
+  // 订阅主进程事件（菜单动作 + 后续任务的外部变更等）
+  useEffect(() => {
+    const off = api.onEvent((event: MainEvent) => {
+      if (event.type === 'menu:action') void handleMenuAction(event.action)
+    })
+    return off
+  }, [])
+
+  // 启动参数自动打开（--open / NOTARA_OPEN）
+  useEffect(() => {
+    void (async () => {
+      const p = await api.getLaunchOpen()
+      if (!p) return
+      const stat = await api.readFile(p).then(
+        () => 'file' as const,
+        () => 'folder' as const
+      )
+      if (stat === 'file') await openPath(p)
+      else await useWorkspace.getState().open(p)
+    })()
+  }, [])
+
   // 输入 → 脏标记 + 防抖保存
   const handleInput = (tabId: number): void => {
     const tab = useTabs.getState().tabs.find((t) => t.id === tabId)
@@ -48,7 +74,7 @@ export function App() {
     saveScheduler.schedule(tabId)
   }
 
-  // 关闭标签：脏则确认（保存→flush 后关 / 不保存→cancel 后关）
+  // 关闭标签：脏则确认（保存→flush 后关 / 不保存→cancel 后关 / 取消→不关）
   const handleClose = (index: number): void => {
     const tab = tabs[index]
     if (!tab) return
@@ -62,16 +88,36 @@ export function App() {
       confirmText: s.confirm.save,
       onConfirm: () => {
         void (async () => {
-          await saveScheduler.flushOne(tab.id).catch(() => undefined)
-          useTabs.getState().close(index)
+          try {
+            await saveScheduler.flushOne(tab.id)
+            useTabs.getState().close(index)
+          } catch {
+            /* 保存失败：保留标签不关闭（saver 已 toast） */
+          }
         })()
       },
-      onCancel: () => {
-        saveScheduler.cancel(tab.id)
-        useTabs.getState().close(index)
+      discard: {
+        text: s.confirm.discard,
+        onDiscard: () => {
+          saveScheduler.cancel(tab.id)
+          useTabs.getState().close(index)
+        }
       }
+      // 不传 onCancel → 「取消」= 不关标签，什么都不做
     })
   }
+
+  // 菜单 close-tab 经自定义事件转发到最新 handleClose（effect 依赖留空，靠 ref 取最新闭包）
+  const closeRef = useRef(handleClose)
+  closeRef.current = handleClose
+  useEffect(() => {
+    const h = (e: Event): void => {
+      const idx = (e as CustomEvent<number>).detail
+      closeRef.current(idx)
+    }
+    window.addEventListener('notara:close-tab', h)
+    return () => window.removeEventListener('notara:close-tab', h)
+  }, [])
 
   return (
     <div className="app">
