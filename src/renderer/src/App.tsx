@@ -25,6 +25,7 @@ export function App() {
   const setActive = useTabs((st) => st.setActive)
   const notify = useUi((st) => st.notify)
   const sidebarVisible = useUi((st) => st.sidebarVisible)
+  const outlineVisible = useUi((st) => st.outlineVisible)
   const confirm = useUi((st) => st.confirm)
   const root = useWorkspace((st) => st.root)
 
@@ -94,6 +95,12 @@ export function App() {
       else await useWorkspace.getState().open(p)
     })()
   }, [])
+
+  // 大纲显隐联动：写入 <html> dataset，由 global.css 控制 vditor 大纲面板的显隐
+  useEffect(() => {
+    if (outlineVisible) delete document.documentElement.dataset.outlineHidden
+    else document.documentElement.dataset.outlineHidden = 'true'
+  }, [outlineVisible])
 
   // 输入 → 脏标记 + 防抖保存
   const handleInput = (tabId: number): void => {

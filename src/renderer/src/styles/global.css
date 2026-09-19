@@ -53,3 +53,5 @@ body {
 .context-menu-item.danger:hover { background: #d64545; color: #fff; }
 /* 名称输入弹窗 */
 .name-input { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--fg); }
+/* 大纲面板显隐（视图菜单「切换大纲」） */
+html[data-outline-hidden] .vditor-outline { display: none !important; }
