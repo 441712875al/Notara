@@ -38,6 +38,20 @@ export interface WindowStatePayload {
   activeIndex: number
 }
 
+/** 窗口位置尺寸（与 Electron.Rectangle 结构一致；此处独立声明以便渲染侧引用） */
+export interface WindowBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface WindowState {
+  /** 上次关闭时的窗口位置尺寸；不在任何可见显示器内时缺省（由主进程校验后丢弃） */
+  bounds?: WindowBounds
+  payload: WindowStatePayload
+}
+
 // ── 菜单与事件 ──────────────────────────────────────────
 export type MenuAction =
   | 'open'
@@ -108,7 +122,7 @@ export interface NotaraApi {
   // 应用生命周期
   flushDone(): Promise<void>
   allowClose(): Promise<void>
-  getWindowState(): Promise<WindowStatePayload | null>
+  getWindowState(): Promise<WindowState | null>
   saveWindowState(state: WindowStatePayload): Promise<void>
   // 事件
   onEvent(cb: (event: MainEvent) => void): () => void

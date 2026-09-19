@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { createWindow } from './window'
+import { installQuitHandshake } from './quit'
 import { registerAllIpc } from './ipc'
 import { installMenu } from './menu'
 import { stopAll } from './services/watchService'
@@ -20,9 +21,10 @@ export function consumeLaunchOpen(): string | null {
 app.whenReady().then(() => {
   registerAllIpc()
   void installMenu()
-  createWindow()
+  installQuitHandshake() // ⌘Q 前广播 flush，等渲染侧 ack 后退出
+  void createWindow()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) void createWindow()
   })
 })
 
@@ -30,5 +32,5 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-// 退出前关闭所有 fs watcher，避免残留句柄
+// 非 ⌘Q 路径（如非 macOS 的 window-all-closed）退出前关闭所有 fs watcher
 app.on('will-quit', () => stopAll())

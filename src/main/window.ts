@@ -1,10 +1,20 @@
-import { BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { createWindowStateService } from './services/windowStateService'
 
-export function createWindow(): BrowserWindow {
+export const stateService = createWindowStateService(() => app.getPath('userData'))
+
+/** 关闭握手期间置位的标记：为 true 时 close 事件放行（由 allowClose IPC 设置） */
+type CloseableWindow = BrowserWindow & { __allowedClose?: boolean }
+
+export async function createWindow(): Promise<BrowserWindow> {
+  // 恢复上次的窗口位置尺寸（不在可见显示器内时 service 已丢弃 bounds）
+  const last = await stateService.load()
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: last?.bounds?.width ?? 1200,
+    height: last?.bounds?.height ?? 800,
+    x: last?.bounds?.x,
+    y: last?.bounds?.y,
     minWidth: 640,
     minHeight: 400,
     show: false,
@@ -25,6 +35,13 @@ export function createWindow(): BrowserWindow {
   win.webContents.on('will-navigate', (e, url) => {
     const devUrl = process.env['ELECTRON_RENDERER_URL']
     if (!devUrl || !url.startsWith(devUrl)) e.preventDefault()
+  })
+  // 关闭握手：脏标签确认在渲染侧完成后 allowClose 才真正销毁；非关闭按钮路径（app.exit）不触发 close
+  win.on('close', (e) => {
+    if (!(win as CloseableWindow).__allowedClose) {
+      e.preventDefault()
+      win.webContents.send('main:event', { type: 'app:close-requested' })
+    }
   })
   win.once('ready-to-show', () => win.show())
   const devUrl = process.env['ELECTRON_RENDERER_URL']

@@ -2,8 +2,10 @@ import { dialog, BrowserWindow } from 'electron'
 import { registerIpc, Channels } from './index'
 import { consumeLaunchOpen } from '../index'
 import { installMenu } from '../menu'
+import { stateService } from '../window'
+import { ackFlushDone } from '../quit'
 import { themeService } from '../services/themeService'
-import type { OpenDialogResult, ThemeSetting } from '@shared/types'
+import type { OpenDialogResult, ThemeSetting, WindowStatePayload } from '@shared/types'
 
 export function registerAppIpc(): void {
   registerIpc(Channels.DialogOpen, async (): Promise<OpenDialogResult> => {
@@ -27,5 +29,29 @@ export function registerAppIpc(): void {
     const info = await themeService.setThemeSetting(p.setting)
     void installMenu()
     return info
+  })
+
+  // 退出握手：渲染侧 flush 完成后 ack，主进程在收齐（或超时）后退出
+  registerIpc(Channels.AppFlushDone, async (_p: unknown, event) => {
+    ackFlushDone(event.sender.id)
+    return null
+  })
+
+  // 关闭握手：渲染侧确认完毕，置放行标记并销毁该窗口（destroy 不触发 close，避免再次拦截）
+  registerIpc(Channels.AppAllowClose, async (_p: unknown, event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && !win.isDestroyed()) {
+      ;(win as BrowserWindow & { __allowedClose?: boolean }).__allowedClose = true
+      win.destroy()
+    }
+    return null
+  })
+
+  // 窗口状态读写（保存取发起窗口的 bounds，多窗口下各存各的）
+  registerIpc(Channels.AppGetWindowState, async () => stateService.load())
+  registerIpc(Channels.AppSaveWindowState, async (p: { state: WindowStatePayload }, event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow()
+    if (win && !win.isDestroyed()) await stateService.save(win.getBounds(), p.state)
+    return null
   })
 }

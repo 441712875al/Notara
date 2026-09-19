@@ -21,6 +21,17 @@ import { resolveCreateEntry } from './lib/treeActions'
 import type { MainEvent, RecentWorkspace, TreeNode } from '@shared/types'
 import { s } from './strings'
 
+/** 持久化窗口状态（工作区 + 已命名标签路径 + 激活项）：定时保存与退出/关闭握手共用 */
+function persistWindowState(): void {
+  const ws = useWorkspace.getState()
+  const tabs = useTabs.getState()
+  void api.saveWindowState({
+    workspaceRoot: ws.root,
+    tabPaths: tabs.tabs.map((t) => t.path).filter((p): p is string => p !== null),
+    activeIndex: tabs.activeIndex
+  })
+}
+
 export function App() {
   const tabs = useTabs((st) => st.tabs)
   const activeIndex = useTabs((st) => st.activeIndex)
@@ -77,6 +88,97 @@ export function App() {
     return () => window.removeEventListener('blur', onBlur)
   }, [])
 
+  // 窗口状态定时保存（1s；读取 store 实时状态，写一份小 JSON）
+  useEffect(() => {
+    const t = setInterval(persistWindowState, 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // 退出/关闭握手（主进程广播 → 渲染侧落盘/确认 → ack/allowClose）
+  useEffect(() => {
+    const off = api.onEvent((event: MainEvent) => {
+      if (event.type === 'app:flush-before-quit') {
+        // ⌘Q：静默落盘已命名标签后 ack。未命名标签无落盘路径（flushAll 空转），
+        // 退出路径不拦截，仅在关闭按钮路径弹另存为确认。
+        void saveScheduler.flushAll().then(() => {
+          persistWindowState()
+          void api.flushDone()
+        })
+        return
+      }
+      if (event.type === 'app:close-requested') {
+        void (async () => {
+          await saveScheduler.flushAll()
+          const dirty = useTabs.getState().tabs.filter((t) => t.dirty)
+          if (dirty.length === 0) {
+            persistWindowState()
+            void api.allowClose()
+            return
+          }
+          useUi.getState().askConfirm({
+            title: s.confirm.closeDirtyTitle,
+            text: s.confirm.closeManyText(dirty.length),
+            confirmText: s.confirm.save,
+            discard: {
+              text: s.confirm.discard,
+              onDiscard: () => {
+                // 不保存：直接关闭
+                persistWindowState()
+                void api.allowClose()
+              }
+            },
+            onConfirm: () => {
+              void (async () => {
+                // 未命名/已删除标签（无落盘路径）逐个另存为；任一取消或失败则中止关闭
+                // （失败 toast 已由 saveTabAs 自身发出，此处不重复提示）
+                const unnamed = dirty.filter((t) => t.path === null || t.deleted)
+                for (const t of unnamed) {
+                  const r = await saveTabAs(t)
+                  if (r !== 'saved') return
+                }
+                await saveScheduler.flushAll() // 已命名脏标签落盘（单个失败不阻断其余）
+                persistWindowState()
+                await api.allowClose()
+              })()
+            }
+            // 不传 onCancel → 「取消」中止关闭，窗口保持打开
+          })
+        })()
+        return
+      }
+    })
+    return off
+  }, [])
+
+  // 标签快捷键：⌘⇧[ / ⌘⇧] 循环切换，⌘1..9 直达第 N 个
+  // 注：macOS US 布局下 Shift+[ 的 e.key 是 '{'（非 '['），故同时比对 e.code（布局/修饰键无关）
+  useEffect(() => {
+    const h = (e: KeyboardEvent): void => {
+      const st = useTabs.getState()
+      const prev = e.code === 'BracketLeft' || e.key === '[' || e.key === '{'
+      const next = e.code === 'BracketRight' || e.key === ']' || e.key === '}'
+      if (e.metaKey && e.shiftKey && (prev || next)) {
+        if (st.tabs.length === 0) return
+        e.preventDefault()
+        const n = st.tabs.length
+        const i = next ? (st.activeIndex + 1) % n : (st.activeIndex - 1 + n) % n
+        st.setActive(i)
+        return
+      }
+      if (e.metaKey && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+        const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code)
+        const digit = m ? m[1] : /^[1-9]$/.test(e.key) ? e.key : null
+        if (!digit) return
+        const i = Number(digit) - 1
+        if (i >= st.tabs.length) return
+        e.preventDefault()
+        st.setActive(i)
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
+
   // 订阅主进程事件（菜单动作 + 工作区树变更 + 重命名同步）
   useEffect(() => {
     const off = api.onEvent((event: MainEvent) => {
@@ -120,19 +222,34 @@ export function App() {
     void useThemeStore.getState().init()
   }, [])
 
-  // 启动参数自动打开（--open / NOTARA_OPEN）
+  // 启动恢复：命令行参数（--open / NOTARA_OPEN）优先；无参数则恢复上次窗口状态（工作区 + 标签 + 激活项）。
+  // getLaunchOpen 为一次性消费（主进程读后即清），因此两条流程必须在此同一 effect 内串行判断，
+  // 拆成两个 effect 会因消费顺序导致命令行打开被吞掉。
   useEffect(() => {
     void (async () => {
-      const p = await api.getLaunchOpen()
-      if (!p) return
-      const stat = await api.readFile(p).then(
-        () => 'file' as const,
-        () => 'folder' as const
-      )
-      if (stat === 'file') await openPath(p)
-      else {
-        await useWorkspace.getState().open(p)
-        refreshRecents()
+      const launch = await api.getLaunchOpen()
+      if (launch) {
+        const stat = await api.readFile(launch).then(
+          () => 'file' as const,
+          () => 'folder' as const
+        )
+        if (stat === 'file') await openPath(launch)
+        else {
+          await useWorkspace.getState().open(launch)
+          refreshRecents()
+        }
+        return
+      }
+      const st = await api.getWindowState()
+      if (!st?.payload.workspaceRoot) return
+      await useWorkspace.getState().open(st.payload.workspaceRoot)
+      // 打开失败（已 toast 并回滚 root）：不再恢复标签，避免留下无工作区的游离标签
+      if (useWorkspace.getState().root === null) return
+      refreshRecents() // 恢复工作区同样是一次「打开」，重查最近列表以刷新排序
+      for (const tp of st.payload.tabPaths) await openPath(tp)
+      const n = useTabs.getState().tabs.length
+      if (st.payload.activeIndex >= 0 && n > 0) {
+        useTabs.getState().setActive(Math.min(st.payload.activeIndex, n - 1))
       }
     })()
   }, [])

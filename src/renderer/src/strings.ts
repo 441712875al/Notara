@@ -11,6 +11,7 @@ export const s = {
   confirm: {
     closeDirtyTitle: '未保存的修改',
     closeDirtyText: (n: string) => `「${n}」有未保存的修改，关闭前保存吗？`,
+    closeManyText: (n: number) => `有 ${n} 个标签未保存，关闭前保存吗？`,
     save: '保存', discard: '不保存', cancel: '取消',
     deleteTitle: '删除', deleteText: (n: string) => `确定将「${n}」移入废纸篓吗？`,
     useDiskTitle: '文件已在磁盘上被修改',
