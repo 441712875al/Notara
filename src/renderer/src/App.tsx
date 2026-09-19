@@ -9,6 +9,7 @@ import { NamePromptModal } from './components/NamePromptModal'
 import { useTabs } from './stores/tabs'
 import { useUi } from './stores/ui'
 import { useWorkspace } from './stores/workspace'
+import { useThemeStore } from './stores/theme'
 import { api } from './lib/api'
 import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
@@ -76,10 +77,24 @@ export function App() {
       } else if (event.type === 'file:external-delete') {
         // 外部删除：标记标签删除并提示
         handleExternalDelete(event.path)
+      } else if (event.type === 'theme:system-changed') {
+        // 系统外观变化：仅「跟随系统」生效；本地推导避免一次 IPC 往返（无自定义 CSS）
+        if (useThemeStore.getState().setting === 'system') {
+          useThemeStore.getState().apply({
+            setting: 'system',
+            effective: event.dark ? 'dark' : 'light',
+            customCss: null,
+            customThemes: []
+          })
+        }
       }
-      // theme 等由后续任务接入
     })
     return off
+  }, [])
+
+  // 主题：启动时从主进程读取设置并落到 DOM
+  useEffect(() => {
+    void useThemeStore.getState().init()
   }, [])
 
   // 启动参数自动打开（--open / NOTARA_OPEN）

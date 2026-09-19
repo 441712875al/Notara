@@ -55,6 +55,8 @@ export function registerAllIpc(): void {
   registerImagesIpc()
   registerExportIpc()
   setNotifier(broadcast)
+  // 系统外观变化广播给渲染进程（仅「跟随系统」时需要，渲染侧自行判断）
+  themeService.onSystemThemeChanged((dark) => broadcast({ type: 'theme:system-changed', dark }))
 }
 
 // 占位导入放文件末尾避免循环依赖问题
@@ -64,3 +66,4 @@ import { registerWorkspaceIpc } from './workspace'
 import { registerImagesIpc } from './images'
 import { registerExportIpc } from './export'
 import { setNotifier } from '../services/watchService'
+import { themeService } from '../services/themeService'

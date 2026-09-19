@@ -19,7 +19,7 @@ export function consumeLaunchOpen(): string | null {
 
 app.whenReady().then(() => {
   registerAllIpc()
-  installMenu()
+  void installMenu()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

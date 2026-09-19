@@ -1,16 +1,60 @@
 import { create } from 'zustand'
-import type { ThemeSetting } from '@shared/types'
+import type { ThemeInfo, ThemeSetting } from '@shared/types'
+import { api } from '../lib/api'
 
-// Task 15 将完整化（真实主题加载/IPC/自定义主题/DOM 应用）；本任务仅提供
-// menuActions 的 set-theme 默认分支所需的最小形态，避免提前引入类型依赖。
-interface ThemeStore {
-  setting: ThemeSetting
-  set: (setting: ThemeSetting) => Promise<void>
+/**
+ * 把主题信息落到 DOM：data-theme 交给 CSS 变量切换亮暗，
+ * 自定义主题 CSS 以 <style id="custom-theme-style"> 注入（切走时移除）。
+ */
+export function applyThemeToDom(info: ThemeInfo): void {
+  document.documentElement.dataset.theme = info.effective
+  document.getElementById('custom-theme-style')?.remove()
+  if (info.customCss) {
+    const style = document.createElement('style')
+    style.id = 'custom-theme-style'
+    style.textContent = info.customCss
+    document.head.appendChild(style)
+  }
 }
 
-export const useThemeStore = create<ThemeStore>(() => ({
+interface ThemeStore {
+  setting: ThemeSetting
+  effective: 'light' | 'dark'
+  customCss?: string | null
+  customThemes: { name: string }[]
+  init: () => Promise<void>
+  set: (setting: ThemeSetting) => Promise<void>
+  apply: (info: ThemeInfo) => void
+}
+
+export const useThemeStore = create<ThemeStore>((zustandSet) => ({
   setting: 'system',
-  async set() {
-    /* Task 15 接入真实主题切换 */
+  effective: 'light',
+  customCss: null,
+  customThemes: [],
+  async init() {
+    const info = await api.getTheme()
+    applyThemeToDom(info)
+    zustandSet({
+      setting: info.setting,
+      effective: info.effective,
+      customCss: info.customCss,
+      customThemes: info.customThemes
+    })
+  },
+  async set(setting) {
+    const info = await api.setTheme(setting)
+    applyThemeToDom(info)
+    zustandSet({
+      setting: info.setting,
+      effective: info.effective,
+      customCss: info.customCss,
+      customThemes: info.customThemes
+    })
+  },
+  // 仅用于「跟随系统」时的系统外观变化：setting/customThemes 不变，只刷新生效亮暗
+  apply(info) {
+    applyThemeToDom(info)
+    zustandSet({ effective: info.effective, customCss: info.customCss })
   }
 }))
