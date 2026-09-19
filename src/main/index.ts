@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { createWindow } from './window'
 import { registerAllIpc } from './ipc'
 import { installMenu } from './menu'
+import { stopAll } from './services/watchService'
 
 // 启动参数：--open <path> 或环境变量 NOTARA_OPEN（E2E 使用）
 let launchOpen: string | null = null
@@ -28,3 +29,6 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+// 退出前关闭所有 fs watcher，避免残留句柄
+app.on('will-quit', () => stopAll())

@@ -64,7 +64,13 @@ function handleDirEvent(dir: string, recursive: boolean, changedPath: string): v
 }
 
 export function watchRoot(dir: string): void {
-  if (watchers.has(dir)) return
+  const existing = watchers.get(dir)
+  if (existing) {
+    if (existing.recursive) return // 已是递归 watcher，幂等
+    // 升格：已有非递归 watcher 覆盖不到嵌套子目录（工作区需要递归），
+    // 先连同 pending 定时器一并关闭移除，再重建为递归 watcher
+    unwatchRoot(dir)
+  }
   const w = watch(dir, { recursive: true }, (_event, filename) => {
     if (!filename) return
     handleDirEvent(dir, true, joinPath(dir, String(filename)))
@@ -88,7 +94,14 @@ export function unwatchRoot(dir: string): void {
   if (!e) return
   e.w.close()
   watchers.delete(dir)
-  pending.delete(dir)
+  // 清掉该目录 pending 的定时器，避免 watcher 关闭后仍广播一次陈旧的
+  // tree-changed / file:external-change 事件
+  const p = pending.get(dir)
+  if (p) {
+    if (p.treeTimer) clearTimeout(p.treeTimer)
+    for (const t of p.fileTimers.values()) clearTimeout(t)
+    pending.delete(dir)
+  }
 }
 
 export function stopAll(): void {
