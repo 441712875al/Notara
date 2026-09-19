@@ -25,6 +25,7 @@ import { s } from './strings'
 function persistWindowState(): void {
   const ws = useWorkspace.getState()
   const tabs = useTabs.getState()
+  // close 路径 persist 后立即 allowClose 销毁窗口，invoke 的 reject 属预期，吞掉防 unhandled rejection
   void api.saveWindowState({
     workspaceRoot: ws.root,
     // 已删除标签的文件已进废纸篓（deleted 标记），不该在下次启动时恢复
@@ -33,7 +34,7 @@ function persistWindowState(): void {
       .map((t) => t.path)
       .filter((p): p is string => p !== null),
     activeIndex: tabs.activeIndex
-  })
+  }).catch(() => {})
 }
 
 /**
@@ -53,18 +54,17 @@ function confirmDirtyExit(finish: () => void, abort: () => void): void {
     discard: { text: s.confirm.discard, onDiscard: finish },
     onConfirm: () => {
       void (async () => {
+        // 弹窗模态不拦截原生菜单加速键（⌘N），期间可能新增未命名脏标签——点击时实时取
+        const cur = useTabs.getState().tabs.filter((t) => t.dirty)
         // 未命名/已删除标签（无落盘路径）逐个另存为；任一取消或失败即中止
         // （失败 toast 已由 saveTabAs 自身发出，此处不重复提示）
-        for (const t of dirty.filter((t) => t.path === null || t.deleted)) {
+        for (const t of cur.filter((t) => t.path === null || t.deleted)) {
           const r = await saveTabAs(t)
           if (r !== 'saved') return abort()
         }
         await saveScheduler.flushAll() // 已命名脏标签落盘（单个失败不阻断其余）
-        // 写盘复查：仍有已命名脏标签说明落盘失败，不得放行
-        const stillDirty = useTabs
-          .getState()
-          .tabs.some((t) => t.dirty && t.path !== null && !t.deleted)
-        if (stillDirty) return abort()
+        // 写盘复查：成功路径下 saveTabAs 已清脏、flush 已清脏；任何仍脏 = 落盘失败，不得放行
+        if (useTabs.getState().tabs.some((t) => t.dirty)) return abort()
         finish()
       })()
     },

@@ -131,4 +131,21 @@ describe('quit 握手', () => {
     ackFlushDone(2)
     expect(h.exit).toHaveBeenCalledTimes(1)
   })
+
+  it('cancelQuit 后迟到的 ackFlushDone 被忽略（握手已复位，无 timer 武装）', () => {
+    h.setWindows([makeWin()])
+    fireBeforeQuit()
+    quitPendingDialog()
+    cancelQuit()
+    ackFlushDone(1) // 迟到 ack：ack 已置 null，应被忽略而非触发 exit
+    // 推进超过 60s 的弹窗兜底上限：若 cancelQuit 未清 timer，此处置身会被强退捕获
+    vi.advanceTimersByTime(65_000)
+    expect(h.exit).not.toHaveBeenCalled()
+  })
+
+  it('quitPendingDialog 在非 quitting 时空操作（不武装任何 timer）', () => {
+    quitPendingDialog() // 无 before-quit：quitting=false，应直接返回
+    vi.advanceTimersByTime(65_000) // 覆盖 3s 与 60s 两档兜底，任一被武装都会被捕获
+    expect(h.exit).not.toHaveBeenCalled()
+  })
 })

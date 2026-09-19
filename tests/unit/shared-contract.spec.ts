@@ -14,9 +14,10 @@ describe('IPC 契约', () => {
       'openDialog', 'readFile', 'writeFile', 'createEntry', 'renameEntry', 'deleteEntry',
       'saveFileAs', 'openWorkspace', 'listChildren', 'saveImage', 'exportHtml', 'exportPdf',
       'listRecent', 'getTheme', 'setTheme', 'flushDone', 'allowClose',
+      'quitPending', 'quitCancel',
       'getWindowState', 'saveWindowState', 'onEvent', 'getLaunchOpen'
     ]
-    expect(probes.length).toBe(21)
+    expect(probes.length).toBe(23)
   })
 
   it('MainEvent 判别联合可穷尽 switch', () => {

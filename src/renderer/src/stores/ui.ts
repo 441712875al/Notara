@@ -57,7 +57,13 @@ export const useUi = create<UiState>((set, get) => ({
   },
   confirm: null,
   askConfirm(req) {
+    // 单槽位：新请求顶替旧请求。旧请求未获用户裁决即被顶替，按「取消」收尾，
+    // 否则其 onCancel 闭包会随引用覆盖而静默丢失（如退出握手弹窗被红绿灯/⌘W 的
+    // 关闭确认顶替后，唯一会调 quitCancel 的 abort 闭包消失，60s 后强退丢内容）。
+    // 先 set 再回调：onCancel 内若同步读 state 应拿到新值而非被顶替的旧值。
+    const prev = get().confirm
     set({ confirm: req })
+    prev?.onCancel?.() // 未定义 onCancel 的旧请求（如外部冲突弹窗）为无操作
   },
   resolveConfirm(ok) {
     const c = get().confirm
