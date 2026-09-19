@@ -17,6 +17,15 @@ export interface ConfirmRequest {
   onCancel?: () => void
 }
 
+/** 名称输入弹窗（新建/重命名共用） */
+export interface NamePromptRequest {
+  title: string
+  /** 打开时的预填值（新建为空串，重命名为当前名） */
+  initial: string
+  placeholder: string
+  onSubmit: (name: string) => void
+}
+
 interface UiState {
   toasts: Toast[]
   notify: (text: string) => void
@@ -29,6 +38,9 @@ interface UiState {
   toggleSidebar: () => void
   outlineVisible: boolean
   toggleOutline: () => void
+  namePrompt: NamePromptRequest | null
+  openNamePrompt: (p: NamePromptRequest) => void
+  closeNamePrompt: () => void
 }
 
 let toastId = 1
@@ -66,5 +78,12 @@ export const useUi = create<UiState>((set, get) => ({
   outlineVisible: true,
   toggleOutline() {
     set((st) => ({ outlineVisible: !st.outlineVisible }))
+  },
+  namePrompt: null,
+  openNamePrompt(p) {
+    set({ namePrompt: p })
+  },
+  closeNamePrompt() {
+    set({ namePrompt: null })
   }
 }))
