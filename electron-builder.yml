@@ -1,0 +1,18 @@
+appId: io.github.logan.notara
+productName: Notara
+directories:
+  output: release
+files:
+  - out/**
+  - "!**/.map"
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  identity: null # 本地构建不签名；公证与签名留待发布流程
+asarUnpack:
+  - "**/resources/*"

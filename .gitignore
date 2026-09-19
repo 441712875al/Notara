@@ -7,3 +7,6 @@ src/renderer/public/vditor/
 .DS_Store
 .superpowers/
 *.tsbuildinfo
+test-results/
+playwright-report/
+blob-report/
