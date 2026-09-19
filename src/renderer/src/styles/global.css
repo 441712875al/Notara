@@ -1,3 +1,7 @@
+:root {
+  --bg: #ffffff; --bg-elevated: #f5f5f7; --fg: #1d1d1f; --fg-secondary: #6e6e73;
+  --border: #d2d2d7; --accent: #3167d6;
+}
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {
@@ -5,3 +9,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 .app { height: 100%; }
+
+/* 标签栏 */
+.tabbar { display: flex; align-items: center; height: 36px; padding: 0 8px; user-select: none; -webkit-app-region: drag; }
+.tabbar-tabs { display: flex; gap: 2px; overflow-x: auto; flex: 1; -webkit-app-region: no-drag; }
+.tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: 13px; color: var(--fg-secondary); }
+.tab.active { background: var(--bg-elevated); color: var(--fg); }
+.tab.deleted .tab-title { text-decoration: line-through; opacity: 0.6; }
+.dirty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.tab-close { border: none; background: none; color: inherit; cursor: pointer; padding: 0 2px; font-size: 14px; opacity: 0; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 0.7; }
+.tab-new { border: none; background: none; font-size: 16px; color: var(--fg-secondary); cursor: pointer; padding: 2px 8px; -webkit-app-region: no-drag; }
+/* 弹窗 */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--bg-elevated); border-radius: 10px; min-width: 320px; max-width: 440px; padding: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+.modal-title { margin: 0 0 8px; font-size: 15px; }
+.modal-body { font-size: 13px; color: var(--fg-secondary); margin-bottom: 16px; }
+.modal-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 13px; }
+.btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn-danger { background: #d64545; color: #fff; border-color: transparent; }
