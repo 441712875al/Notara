@@ -8,7 +8,7 @@ import { useWorkspace } from './stores/workspace'
 import { api } from './lib/api'
 import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
-import { handleMenuAction } from './lib/menuActions'
+import { handleMenuAction, saveTabAs } from './lib/menuActions'
 import { openPath } from './lib/openFile'
 import type { MainEvent } from '@shared/types'
 import { s } from './strings'
@@ -88,12 +88,21 @@ export function App() {
       confirmText: s.confirm.save,
       onConfirm: () => {
         void (async () => {
-          try {
-            await saveScheduler.flushOne(tab.id)
-            useTabs.getState().close(index)
-          } catch {
-            /* 保存失败：保留标签不关闭（saver 已 toast） */
+          if (tab.path !== null && !tab.deleted) {
+            // 已命名标签：flush 成功才关；失败保留（saver 已 toast）
+            try {
+              await saveScheduler.flushOne(tab.id)
+            } catch {
+              return
+            }
+          } else {
+            // 未命名/已删除标签：走另存为对话框，仅保存成功才关
+            const r = await saveTabAs(tab)
+            if (r !== 'saved') return
           }
+          // 异步窗口期间标签列表可能已变，按 tab.id 重新定位再关
+          const cur = useTabs.getState().tabs.findIndex((t) => t.id === tab.id)
+          if (cur >= 0) useTabs.getState().close(cur)
         })()
       },
       discard: {

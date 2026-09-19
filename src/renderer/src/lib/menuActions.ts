@@ -7,6 +7,7 @@ import { openPath } from './openFile'
 import { useTabs } from '../stores/tabs'
 import { useUi } from '../stores/ui'
 import { useWorkspace } from '../stores/workspace'
+import { s } from '../strings'
 
 /** 取当前激活标签与其 vditor 实例；实例未就绪（init 中）时 vd 为 null */
 async function activeVditor() {
@@ -15,15 +16,34 @@ async function activeVditor() {
   return { tab, vd: editors.get(tab.id) ?? null }
 }
 
-/** 另存为：弹保存对话框，成功后更新标签路径/标题/脏标记；用户取消或编辑器未就绪则不动 */
+/**
+ * 按标签 id 走「另存为」：取该标签的 vditor 内容弹保存对话框。
+ * - 成功 → setSaved 更新路径/标题/脏标记，返回 'saved'
+ * - 用户取消（api 返回 null）→ 'cancelled'，标签状态不动
+ * - 编辑器实例未就绪或写盘抛错 → 'failed'（抛错时 toast 提示）
+ * 注意：与 doSaveAs 不同，此处按传入 tab.id 定位 vditor，不依赖当前激活标签。
+ */
+export async function saveTabAs(
+  tab: { id: number; title: string }
+): Promise<'saved' | 'cancelled' | 'failed'> {
+  const vd = editors.get(tab.id)
+  if (!vd) return 'failed'
+  try {
+    const r = await api.saveFileAs(`${tab.title}.md`, vd.getValue())
+    if (!r) return 'cancelled' // 用户取消
+    useTabs.getState().setSaved(tab.id, r.path)
+    return 'saved'
+  } catch {
+    useUi.getState().notify(s.toast.saveFailed)
+    return 'failed'
+  }
+}
+
+/** 另存为：对当前激活标签调用 saveTabAs；无激活标签或实例未就绪则不动 */
 async function doSaveAs(): Promise<void> {
   const active = await activeVditor()
   if (!active) return
-  const { tab, vd } = active
-  if (!vd) return
-  const r = await api.saveFileAs(`${tab.title}.md`, vd.getValue())
-  if (!r) return // 用户取消
-  useTabs.getState().setSaved(tab.id, r.path)
+  await saveTabAs(active.tab)
 }
 
 /** 处理菜单/快捷键动作（App 只做事件转发） */
