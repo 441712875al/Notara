@@ -6,3 +6,4 @@ src/renderer/public/vditor/
 *.local
 .DS_Store
 .superpowers/
+*.tsbuildinfo
