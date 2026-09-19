@@ -113,12 +113,29 @@ export async function handleMenuAction(action: MenuAction): Promise<void> {
     case 'toggle-outline':
       useUi.getState().toggleOutline()
       return
+    case 'export-html':
+    case 'export-pdf': {
+      const active = await activeVditor()
+      // 未保存标签没有落盘路径，导出无处可写
+      if (!active?.vd || !active.tab.path) {
+        useUi.getState().notify(s.toast.exportFirst)
+        return
+      }
+      try {
+        const html = active.vd.getHTML()
+        if (action === 'export-html') await api.exportHtml(active.tab.path, html)
+        else await api.exportPdf(active.tab.path, html)
+      } catch (e) {
+        useUi.getState().notify(s.toast.exportFailed((e as Error).message))
+      }
+      return
+    }
     default:
       if (action.startsWith('set-theme:')) {
         const { useThemeStore } = await import('../stores/theme')
         await useThemeStore.getState().set(action.slice('set-theme:'.length))
       }
-      // export-pdf / export-html 在 Task 15 接入，new-window 由主进程直接处理
+      // new-window 由主进程直接处理
       return
   }
 }

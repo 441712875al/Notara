@@ -25,6 +25,8 @@ export const s = {
     deletedFile: '文件已被删除，保存时将提示另存为',
     saveImageFirst: '请先保存文件，再粘贴图片',
     imageSaveFailed: (msg: string) => `图片保存失败: ${msg}`,
+    exportFirst: '请先保存文件，再导出',
+    exportFailed: (msg: string) => `导出失败: ${msg}`,
   },
   tree: {
     newFile: '新建文件', newFolder: '新建文件夹', rename: '重命名', del: '删除',

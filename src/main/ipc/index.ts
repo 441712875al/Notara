@@ -53,6 +53,7 @@ export function registerAllIpc(): void {
   registerFilesIpc()
   registerWorkspaceIpc()
   registerImagesIpc()
+  registerExportIpc()
   setNotifier(broadcast)
 }
 
@@ -61,4 +62,5 @@ import { registerAppIpc } from './app'
 import { registerFilesIpc } from './files'
 import { registerWorkspaceIpc } from './workspace'
 import { registerImagesIpc } from './images'
+import { registerExportIpc } from './export'
 import { setNotifier } from '../services/watchService'
