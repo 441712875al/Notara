@@ -1,5 +1,6 @@
 import type Vditor from 'vditor'
 import { api } from './api'
+import { parseIpcError } from './ipcError'
 import { editors } from './editorRegistry'
 import { useTabs } from '../stores/tabs'
 import { useUi } from '../stores/ui'
@@ -57,7 +58,7 @@ export async function insertImageFromFile(vd: Vditor, file: File, tabId: number)
     vd.insertValue(`\n![](${encoded})\n`)
     return true
   } catch (e) {
-    useUi.getState().notify(s.toast.imageSaveFailed((e as Error).message))
+    useUi.getState().notify(s.toast.imageSaveFailed(parseIpcError(e).message))
     return true // 已消费：失败也拦截，插入占位无意义
   }
 }

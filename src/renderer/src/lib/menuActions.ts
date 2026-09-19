@@ -4,6 +4,7 @@ import { saveScheduler } from './saveScheduler'
 import { editors } from './editorRegistry'
 import { applyWrap } from './format'
 import { openPath } from './openFile'
+import { parseIpcError } from './ipcError'
 import { useTabs } from '../stores/tabs'
 import { useUi } from '../stores/ui'
 import { useWorkspace } from '../stores/workspace'
@@ -67,7 +68,9 @@ export async function handleMenuAction(action: MenuAction): Promise<void> {
             await openPath(path)
             return
           } catch (e) {
-            if ((e as { code?: string }).code !== 'target-exists') throw e
+            // IPC 错误码经 message 前缀跨桥（跨桥丢自定义属性），解回判别；未编码的错误照旧 rethrow
+            const { code } = parseIpcError(e)
+            if (code !== 'target-exists') throw e
           }
         }
       }
@@ -126,7 +129,7 @@ export async function handleMenuAction(action: MenuAction): Promise<void> {
         if (action === 'export-html') await api.exportHtml(active.tab.path, html)
         else await api.exportPdf(active.tab.path, html)
       } catch (e) {
-        useUi.getState().notify(s.toast.exportFailed((e as Error).message))
+        useUi.getState().notify(s.toast.exportFailed(parseIpcError(e).message))
       }
       return
     }

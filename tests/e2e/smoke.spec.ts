@@ -6,6 +6,7 @@ import { join } from 'node:path'
 /** preload contextBridge 暴露的最小面（e2e 不在 tsc 工程内，此处自声明避免依赖全局 env.d.ts） */
 interface NotaraShape {
   exportHtml: (sourcePath: string, html: string) => Promise<{ htmlPath: string }>
+  createEntry: (dir: string, name: string, kind: 'file' | 'directory') => Promise<{ path: string }>
 }
 
 // 本仓库 package.json 无 "type": "module"，Playwright 将 .ts 转译为 CJS，
@@ -59,6 +60,19 @@ test('打开工作区 → 编辑 → 自动保存 → 导出 HTML', async () => 
   const exported = await readFile(join(ws, 'README.html'), 'utf8')
   expect(exported).toContain('<h1>导出</h1>')
   expect(exported).toContain('<title>README</title>')
+
+  // 错误码跨 contextBridge 会丢自定义属性（实测仅克隆 stack/message），
+  // preload 改把码编码进 message 前缀（`[code] message`）；对已存在的 README.md
+  // 调 createEntry 应 reject，且 message 带 `[target-exists] ` 前缀供渲染侧解回。
+  const dupMessage = await page.evaluate(async (wsDir) => {
+    try {
+      await (window as unknown as NotaraShape).notara.createEntry(wsDir, 'README.md', 'file')
+      return null
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e)
+    }
+  }, ws)
+  expect(dupMessage).toMatch(/^\[target-exists\] /)
 
   // 退出（flush 握手路径）
   await app.close()

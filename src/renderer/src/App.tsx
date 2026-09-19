@@ -16,6 +16,7 @@ import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
 import { handleMenuAction, saveTabAs } from './lib/menuActions'
 import { openPath } from './lib/openFile'
+import { parseIpcError } from './lib/ipcError'
 import { handleExternalChange, handleExternalDelete } from './lib/externalChanges'
 import { resolveCreateEntry } from './lib/treeActions'
 import type { MainEvent, RecentWorkspace, TreeNode } from '@shared/types'
@@ -390,7 +391,7 @@ export function App() {
       const { path } = await api.createEntry(dir, resolved.name, resolved.kind)
       if (resolved.kind === 'file') await openPath(path)
     } catch (e) {
-      notify((e as Error).message)
+      notify(parseIpcError(e).message)
     }
   }
 
@@ -401,7 +402,7 @@ export function App() {
       const dir = node.path.slice(0, node.path.lastIndexOf('/'))
       await api.renameEntry(node.path, `${dir}/${name}`)
     } catch (e) {
-      notify((e as Error).message)
+      notify(parseIpcError(e).message)
     }
   }
 
@@ -413,7 +414,7 @@ export function App() {
       confirmText: s.confirm.deleteTitle,
       danger: true,
       onConfirm: () => {
-        void api.deleteEntry(node.path).catch((e) => notify((e as Error).message))
+        void api.deleteEntry(node.path).catch((e) => notify(parseIpcError(e).message))
       }
     })
   }

@@ -1,4 +1,5 @@
 import { api } from './api'
+import { parseIpcError } from './ipcError'
 import { useTabs } from '../stores/tabs'
 import { useUi } from '../stores/ui'
 import { s } from '../strings'
@@ -10,9 +11,9 @@ export async function openPath(path: string, opts?: { silent?: boolean }): Promi
     useTabs.getState().openFile(path, content)
   } catch (e) {
     if (opts?.silent) return
-    const code = (e as { code?: string }).code
+    const { code, message } = parseIpcError(e)
     useUi
       .getState()
-      .notify(code === 'binary-file' ? s.toast.binaryFile : s.toast.openFailed((e as Error).message))
+      .notify(code === 'binary-file' ? s.toast.binaryFile : s.toast.openFailed(message))
   }
 }

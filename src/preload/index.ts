@@ -4,8 +4,9 @@ import type { IpcResult, MainEvent, NotaraApi } from '../shared/types'
 async function invoke<T>(channel: string, payload?: unknown): Promise<T> {
   const r = (await ipcRenderer.invoke(channel, payload)) as IpcResult<T>
   if (!r.ok) {
-    // contextBridge 不能跨桥传递 Error 子类属性，重建为普通错误对象
-    throw Object.assign(new Error(r.error.message), { code: r.error.code })
+    // contextBridge 对 Error 只克隆 stack/message（实测），code 属性无法跨桥传递，
+    // 故编码进 message 前缀（格式 `[code] message`），渲染侧用 parseIpcError 解回
+    throw new Error(`[${r.error.code}] ${r.error.message}`)
   }
   return r.value
 }

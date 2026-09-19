@@ -91,6 +91,11 @@ export type IpcResult<T> =
   | { ok: false; error: NotaraErrorShape }
 
 // ── 渲染进程 API（window.notara）────────────────────────
+/**
+ * preload 已解包 IpcResult 信封：成功直接返回 value，失败 throw Error。
+ * 注意：contextBridge 跨桥只克隆 Error 的 stack/message（自定义属性 code 会丢），
+ * 故错误码编码进 message 前缀 `[code] message`；渲染侧用 parseIpcError 解回 code 与纯 message。
+ */
 export interface NotaraApi {
   // 对话框与启动
   openDialog(): Promise<OpenDialogResult>

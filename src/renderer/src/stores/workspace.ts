@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../lib/api'
+import { parseIpcError } from '../lib/ipcError'
 import { useUi } from './ui'
 import { s } from '../strings'
 import type { TreeNode } from '@shared/types'
@@ -27,7 +28,7 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     } catch (e) {
       // 打开失败：回滚为无工作区，避免留下半初始化状态
       set({ root: null, children: new Map(), loading: new Map() })
-      useUi.getState().notify(s.toast.openFailed((e as Error).message))
+      useUi.getState().notify(s.toast.openFailed(parseIpcError(e).message))
     }
   },
 
