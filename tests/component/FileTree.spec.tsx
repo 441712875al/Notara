@@ -59,6 +59,6 @@ describe('FileTree', () => {
       />
     )
     fireEvent.contextMenu(screen.getByTestId('tree-node-/w/a.md'))
-    expect(onContext).toHaveBeenCalled()
+    expect(onContext).toHaveBeenCalledWith(expect.anything(), nodes[1])
   })
 })

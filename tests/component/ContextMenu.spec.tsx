@@ -41,4 +41,11 @@ describe('ContextMenu', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onClick).not.toHaveBeenCalled()
   })
+
+  it('按下 Escape 关闭菜单', () => {
+    const onClose = vi.fn()
+    render(<ContextMenu x={0} y={0} items={[{ label: '新建文件', onClick: vi.fn() }]} onClose={onClose} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
 })

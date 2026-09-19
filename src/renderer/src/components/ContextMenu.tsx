@@ -23,11 +23,17 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       onClose()
     }
     const onBlur = (): void => onClose()
+    // Escape 关闭菜单
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onClose()
+    }
     window.addEventListener('mousedown', onDown)
     window.addEventListener('blur', onBlur)
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('mousedown', onDown)
       window.removeEventListener('blur', onBlur)
+      window.removeEventListener('keydown', onKey)
     }
   }, [onClose])
   return (

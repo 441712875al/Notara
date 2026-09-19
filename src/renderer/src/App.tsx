@@ -13,6 +13,7 @@ import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
 import { handleMenuAction, saveTabAs } from './lib/menuActions'
 import { openPath } from './lib/openFile'
+import { resolveCreateEntry } from './lib/treeActions'
 import type { MainEvent, TreeNode } from '@shared/types'
 import { s } from './strings'
 
@@ -59,7 +60,8 @@ export function App() {
         // 外部/树内增删改：刷新已加载目录的缓存
         const ws = useWorkspace.getState()
         if (event.root === ws.root) {
-          for (const dir of [...ws.children.keys()]) void ws.refresh(dir)
+          // 静默刷新：目录被外部删除时 listChildren 抛 NotFound，watcher 稍后会再发 tree-changed
+          for (const dir of [...ws.children.keys()]) void ws.refresh(dir).catch(() => undefined)
         }
       } else if (event.type === 'file:renamed') {
         // 主进程在 renameEntry 后广播；同步已打开标签的路径与标题
@@ -157,13 +159,16 @@ export function App() {
     useUi.getState().openNamePrompt({ title, initial, placeholder: title, onSubmit })
   }
 
-  // 在目录内新建：有 .md/.markdown 扩展名建文件，否则建文件夹
-  const createInDir = async (dir: string, name: string): Promise<void> => {
+  // 在目录内新建：按菜单意图决定类型（file 自动补 .md；directory 原样）
+  const createInDir = async (
+    dir: string,
+    name: string,
+    kind: 'file' | 'directory'
+  ): Promise<void> => {
     try {
-      const isMd = /\.(md|markdown)$/i.test(name)
-      const kind = isMd ? 'file' : 'directory'
-      const { path } = await api.createEntry(dir, name, kind)
-      if (kind === 'file') await openPath(path)
+      const resolved = resolveCreateEntry(name, kind)
+      const { path } = await api.createEntry(dir, resolved.name, resolved.kind)
+      if (resolved.kind === 'file') await openPath(path)
     } catch (e) {
       notify((e as Error).message)
     }
@@ -198,12 +203,17 @@ export function App() {
       ? [
           {
             label: s.tree.newFile,
-            onClick: () => askName(s.tree.namePrompt.file, '', (name) => void createInDir(node.path, name))
+            onClick: () =>
+              askName(s.tree.namePrompt.file, '', (name) =>
+                void createInDir(node.path, name, 'file')
+              )
           },
           {
             label: s.tree.newFolder,
             onClick: () =>
-              askName(s.tree.namePrompt.folder, '', (name) => void createInDir(node.path, name))
+              askName(s.tree.namePrompt.folder, '', (name) =>
+                void createInDir(node.path, name, 'directory')
+              )
           }
         ]
       : [
