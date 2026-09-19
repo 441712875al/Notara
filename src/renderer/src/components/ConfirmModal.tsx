@@ -6,7 +6,8 @@ export function ConfirmModal() {
   const confirm = useUi((st) => st.confirm)
   const resolve = useUi((st) => st.resolveConfirm)
   const resolveDiscard = useUi((st) => st.resolveDiscard)
-  if (!confirm) return null
+  // 外部修改冲突由 ConflictModal 专用渲染，此处让位
+  if (!confirm || confirm.title === s.confirm.useDiskTitle) return null
   return (
     <Modal
       title={confirm.title}

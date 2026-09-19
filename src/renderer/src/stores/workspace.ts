@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { api } from '../lib/api'
+import { useUi } from './ui'
+import { s } from '../strings'
 import type { TreeNode } from '@shared/types'
 
 interface WorkspaceState {
@@ -19,8 +21,14 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
 
   async open(root) {
     set({ root, children: new Map(), loading: new Map() })
-    await api.openWorkspace(root)
-    await get().loadChildren(root)
+    try {
+      await api.openWorkspace(root)
+      await get().loadChildren(root)
+    } catch (e) {
+      // 打开失败：回滚为无工作区，避免留下半初始化状态
+      set({ root: null, children: new Map(), loading: new Map() })
+      useUi.getState().notify(s.toast.openFailed((e as Error).message))
+    }
   },
 
   async loadChildren(dir) {
@@ -37,6 +45,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
         children.set(dir, nodes)
         return { children }
       })
+    } catch {
+      // 静默失败：目录可能被外部删除，不缓存，watcher 会再发 tree-changed
     } finally {
       set((st) => {
         const loading = new Map(st.loading)

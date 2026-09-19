@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { TabBar } from './components/TabBar'
 import { ConfirmModal } from './components/ConfirmModal'
+import { ConflictModal } from './components/ConflictModal'
 import { Editor } from './components/Editor'
 import { Sidebar } from './components/Sidebar'
 import { ContextMenu, type ContextMenuItem } from './components/ContextMenu'
@@ -13,6 +14,7 @@ import { saveScheduler } from './lib/saveScheduler'
 import { editors } from './lib/editorRegistry'
 import { handleMenuAction, saveTabAs } from './lib/menuActions'
 import { openPath } from './lib/openFile'
+import { handleExternalChange, handleExternalDelete } from './lib/externalChanges'
 import { resolveCreateEntry } from './lib/treeActions'
 import type { MainEvent, TreeNode } from '@shared/types'
 import { s } from './strings'
@@ -23,6 +25,7 @@ export function App() {
   const setActive = useTabs((st) => st.setActive)
   const notify = useUi((st) => st.notify)
   const sidebarVisible = useUi((st) => st.sidebarVisible)
+  const confirm = useUi((st) => st.confirm)
   const root = useWorkspace((st) => st.root)
 
   // 保存管线：防抖/flush → 读 vditor 内容 → 写盘 → 清脏标记
@@ -66,8 +69,14 @@ export function App() {
       } else if (event.type === 'file:renamed') {
         // 主进程在 renameEntry 后广播；同步已打开标签的路径与标题
         useTabs.getState().renamePath(event.oldPath, event.newPath)
+      } else if (event.type === 'file:external-change') {
+        // 外部修改：净标签静默重载，脏标签弹冲突确认
+        void handleExternalChange(event.path)
+      } else if (event.type === 'file:external-delete') {
+        // 外部删除：标记标签删除并提示
+        handleExternalDelete(event.path)
       }
-      // external-change / external-delete / theme 等由后续任务接入
+      // theme 等由后续任务接入
     })
     return off
   }, [])
@@ -253,6 +262,13 @@ export function App() {
         </div>
       </div>
       <ConfirmModal />
+      {confirm?.title === s.confirm.useDiskTitle ? (
+        <ConflictModal
+          path={confirm.text}
+          onKeepMine={() => useUi.getState().resolveConfirm(true)}
+          onUseDisk={() => useUi.getState().resolveConfirm(false)}
+        />
+      ) : null}
       <NamePromptModal />
       {menu ? (
         <ContextMenu

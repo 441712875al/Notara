@@ -15,6 +15,8 @@ export const s = {
     deleteTitle: '删除', deleteText: (n: string) => `确定将「${n}」移入废纸篓吗？`,
     useDiskTitle: '文件已在磁盘上被修改',
     keepMine: '保留我的版本', useDisk: '加载磁盘版本',
+    discardLocalTitle: '丢弃未保存的修改',
+    discardLocalText: (n: string) => `确定丢弃「${n}」的未保存修改？`,
   },
   toast: {
     saveFailed: '保存失败，已保留修改稍后重试',
