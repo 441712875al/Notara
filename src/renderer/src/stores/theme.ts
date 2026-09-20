@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ThemeInfo, ThemeSetting } from '@shared/types'
 import { api } from '../lib/api'
+import { editors } from '../lib/editorRegistry'
 
 /**
  * 把主题信息落到 DOM：data-theme 交给 CSS 变量切换亮暗，
@@ -8,9 +9,16 @@ import { api } from '../lib/api'
  */
 export function applyThemeToDom(info: ThemeInfo): void {
   document.documentElement.dataset.theme = info.effective
-  // vditor 自带成套暗色主题 .vditor--dark（IR 括号/引号/标题边框/引用/callout 等），
-  // 暗色时给所有编辑器容器加类启用，亮色时移除（无需手写逐个变量覆盖）。
+  // 已就绪的编辑器实例走 vditor 官方 setTheme 一站式切换：
+  // 暗色换 .vditor--dark（IR 标记/callout）+ content-theme dark.css + 高亮 github-dark.min.css
+  // （亮色 github 的深蓝 token 在暗底上不可读）；亮色对应换回 classic/light/github。
+  // content-theme 与 hljs 样式是 document 级共享 link（同 id），多实例幂等。
   const dark = info.effective === 'dark'
+  editors.forEach((vd) => {
+    vd.setTheme(dark ? 'dark' : 'classic', dark ? 'dark' : 'light', dark ? 'github-dark' : 'github')
+  })
+  // DOM 兜底：editors 只存 init 完成的实例，初始化竞态窗口内的容器仍以类切换保证不漏
+  // （新开标签的补齐由 Editor 的 after 回调负责）
   document.querySelectorAll('.vditor').forEach((el) => el.classList.toggle('vditor--dark', dark))
   document.getElementById('custom-theme-style')?.remove()
   if (info.customCss) {

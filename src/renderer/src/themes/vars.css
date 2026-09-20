@@ -1,21 +1,39 @@
-/* 主题变量：亮色为默认，暗色由 <html data-theme="dark"> 切换（applyThemeToDom 写入） */
+/* 主题变量：亮色为默认，暗色由 <html data-theme="dark"> 切换（applyThemeToDom 写入）。
+   概念「被照亮的纸」：chrome（标签栏/侧栏）是桌面，文档区是一张更亮的纸；
+   正文用衬线字排成书页，accent 为钢笔墨水蓝。自定义主题只需覆盖同名变量。 */
 :root {
-  --bg: #ffffff; --bg-elevated: #f5f5f7; --fg: #1d1d1f; --fg-secondary: #6e6e73;
-  --border: #d2d2d7; --accent: #3167d6;
+  /* 颜色（亮）：纸为冷调中性白，桌面比纸深一档，把文档衬出来 */
+  --bg: #fdfdfc;            /* 纸（编辑区/正文背景） */
+  --bg-elevated: #f4f3f0;   /* 桌面（标签栏/侧栏/弹窗/代码块） */
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --fg: #26282d;            /* 墨 */
+  --fg-secondary: #77797f;
+  --border: #e4e3df;        /* 发丝线 */
+  --accent: #3357c4;        /* 墨水蓝 */
+  --selection: rgba(51, 87, 196, 0.15);
+  --code-bg: #f1f0ec;       /* 行内代码着色 */
+  --blockquote-tint: #f7f6f2;
+  --backdrop: rgba(25, 26, 29, 0.32);
+
+  /* 字体：chrome 用系统无衬线（安静），正文用衬线（书页），代码等宽 */
+  --font-ui: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  --font-prose: 'Iowan Old Style', 'Georgia', 'Songti SC', 'STSong', serif;
+  --font-mono: 'SF Mono', 'Menlo', monospace;
 }
 html[data-theme='dark'] {
-  --bg: #1e1e20; --bg-elevated: #2a2a2d; --fg: #e8e8ea; --fg-secondary: #98989d;
-  --border: #3a3a3e; --accent: #5c8dff;
+  /* 暗色为同一概念的逆光版：桌面更暗，纸仍是被照亮的那块 */
+  --bg: #202126;
+  --bg-elevated: #17181c;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --fg: #e7e7ea;
+  --fg-secondary: #9698a0;
+  --border: #2c2e34;
+  --accent: #7e97e8;
+  --selection: rgba(126, 151, 232, 0.24);
+  --code-bg: #26272d;
+  --blockquote-tint: #232429;
+  --backdrop: rgba(0, 0, 0, 0.55);
 }
-/* vditor 暗色联动：仅覆盖「面板/文本区与应用 chrome 保持一致」的变量。
-   vditor 3.11.3 未定义 --ir-heading-border-color/--ir-blockquote-color/--ir-code-color/--ir-table-border-color，
-   故不再覆盖；IR 内容色（bracket/paren/blockquote/heading-border 等）由 .vditor--dark 内置主题提供（见 stores/theme.ts）。 */
-html[data-theme='dark'] .vditor {
-  --panel-background-color: var(--bg-elevated);
-  --textarea-background-color: var(--bg);
-  --textarea-text-color: var(--fg);
-  --border-color: var(--border);
-  --ir-bi-color: var(--fg-secondary);
-  --ir-heading-color: var(--fg);
-  --ir-link-color: var(--accent);
-}
+/* vditor 侧变量（panel/textarea/IR 标记色）在 global.css 的 `.editors .vditor` 作用域统一覆盖：
+   该选择器 (0,2,0) 高于 vditor dist 的 :root 与 .vditor--dark (均 0,1,0)，
+   不受加载顺序影响；值全部引用上面的主题变量，亮暗自动切换，无需分主题重复。 */

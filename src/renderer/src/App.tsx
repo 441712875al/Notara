@@ -82,6 +82,7 @@ export function App() {
   const sidebarVisible = useUi((st) => st.sidebarVisible)
   const outlineVisible = useUi((st) => st.outlineVisible)
   const confirm = useUi((st) => st.confirm)
+  const toasts = useUi((st) => st.toasts)
   const root = useWorkspace((st) => st.root)
 
   // 最近工作区：启动加载；每次成功打开工作区后重查（主进程在该 IPC 里 touchRecent）
@@ -496,6 +497,21 @@ export function App() {
           items={treeMenuItems(menu.node)}
           onClose={() => setMenu(null)}
         />
+      ) : null}
+      {/* 提示栈：ui store 的 notify() 唯一渲染出口（4s 自动消失，点击可提前关闭） */}
+      {toasts.length > 0 ? (
+        <div className="toast-stack">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="toast"
+              role="status"
+              onClick={() => useUi.getState().dismissToast(t.id)}
+            >
+              {t.text}
+            </div>
+          ))}
+        </div>
       ) : null}
     </div>
   )

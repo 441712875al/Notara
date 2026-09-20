@@ -1,0 +1,121 @@
+/* 正文排版：把 vditor 默认的 GitHub 风（无衬线/1.5 行高/斑马纹表格）重排为「书页」——
+   衬线正文、CJK 友好行高、书籍标题刻度、三线谱表格、精修代码块与引用。
+   全部取自 themes/vars.css 的主题变量，亮暗自适应；选择器统一加 .editors 作用域并
+   与 vditor 原生 .vditor-reset 系规则比特异性（详见各段注释）。 */
+
+/* 内容列宽度交给 vditor 原生机制（默认 preview.maxWidth=800，勿在 options 传部分
+   preview 覆盖——vditor 对 options 浅合并，会丢 theme/hljs 子对象破坏暗色 setTheme，见 Editor.tsx）：
+   setPadding 会按窗口宽动态写内联 padding 实现居中限宽，且大纲显隐/resize 时自动重算——
+   若在此处用 CSS max-width 覆盖会与内联 padding 叠加双重收窄并破坏该联动。
+   CSS 只做纯排版（字体/行高/光标色）+ 顶部留白（!important 压 setPadding 内联简写的 10px top） */
+.editors .vditor {
+  --editor-bottom: 40vh;
+}
+.editors .vditor-ir pre.vditor-reset {
+  font-family: var(--font-prose);
+  font-size: 16px;
+  line-height: 1.78; /* 中文混排舒适行高（1.5 对 CJK 过挤） */
+  padding-top: 44px !important;
+  caret-color: var(--accent);
+}
+/* 正文墨色：vditor 将 .vditor-reset 文本色硬编码为 #24292e 且暗色无任何覆盖
+   （dist 中 .vditor--dark 仅一处变量定义块），暗色下深灰字落在暗纸上几乎不可读——
+   统一取主题 --fg（亮为墨、暗为浅），标题/代码块内未高亮文本随之继承 */
+.editors .vditor-reset { color: var(--fg); }
+
+/* 标题刻度（书籍化）：h1 章题、h2 节题带章节细线、h3 以下渐次收细 */
+.editors .vditor-reset h1,
+.editors .vditor-reset h2,
+.editors .vditor-reset h3,
+.editors .vditor-reset h4,
+.editors .vditor-reset h5,
+.editors .vditor-reset h6 {
+  font-family: var(--font-prose);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.editors .vditor-reset h1 { font-size: 1.65em; font-weight: 700; margin: 1.4em 0 0.55em; }
+.editors .vditor-reset h2 {
+  font-size: 1.32em;
+  margin: 1.9em 0 0.6em;
+  padding-bottom: 0.28em;
+  border-bottom: 1px solid var(--border); /* 章节细线：节题与正文分流 */
+}
+.editors .vditor-reset h3 { font-size: 1.14em; margin: 1.5em 0 0.45em; }
+.editors .vditor-reset h4 { font-size: 1em; margin: 1.3em 0 0.4em; }
+.editors .vditor-reset h5,
+.editors .vditor-reset h6 { font-size: 1em; color: var(--fg-secondary); margin: 1.2em 0 0.4em; }
+/* 文档首标题不吃上方大间距 */
+.editors .vditor-reset > h1:first-child,
+.editors .vditor-reset > h2:first-child { margin-top: 0; }
+
+/* 段落与列表：节奏统一为 0.9em 段距 */
+.editors .vditor-reset p { margin: 0 0 0.9em; }
+.editors .vditor-reset ul,
+.editors .vditor-reset ol { padding-left: 1.6em; margin: 0 0 0.9em; }
+.editors .vditor-reset li { margin: 0.25em 0; }
+
+/* 引用：墨水蓝左线 + 纸灰着色（中文不适合衬线斜体，用颜色与缩进表达层级） */
+.editors .vditor-reset blockquote {
+  margin: 0 0 0.9em;
+  padding: 0.55em 1em;
+  color: var(--fg-secondary);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: var(--blockquote-tint);
+}
+
+/* 行内代码：等宽 + 纸灰着色。
+   选择器须压过 vditor 的 `.vditor-reset code:not(.hljs):not(.highlight-chroma)`（0,3,1）——
+   IR 里行内 code 的稳定祖先是 span.vditor-ir__node[data-type=code]，借它提特异性到 (0,4,1) */
+.editors .vditor-reset span.vditor-ir__node[data-type='code'] code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+/* 代码块：桌面色底 + 发丝边，像稿纸上贴的一张便签。
+   IR 的代码块 node 含两份 pre——平时显示 pre.vditor-ir__preview（渲染态），
+   光标进入后切换为 pre.vditor-ir__marker--pre（源码态），两者都要设底板才不跳变。
+   padding 用 !important 对抗 vditor 对折叠态 marker 的 `padding:0 !important`
+   （其意图是标记符不占边距，与代码块需要内边距的意图在 marker-pre 上冲突） */
+.editors .vditor-reset pre.vditor-ir__preview,
+.editors .vditor-reset pre.vditor-ir__marker--pre {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px 16px !important;
+  margin: 0 0 0.9em;
+}
+.editors .vditor-reset pre.vditor-ir__preview code,
+.editors .vditor-reset pre.vditor-ir__marker--pre code {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  background: none;
+  padding: 0;
+}
+
+/* 表格：三线谱（顶线/表头下线/底线），去掉 GitHub 斑马纹与网格 */
+.editors .vditor-reset table { border-collapse: collapse; border-top: 1.5px solid var(--border); margin: 0 0 1em; }
+.editors .vditor-reset tr { background: transparent; }
+.editors .vditor-reset th {
+  font-weight: 600;
+  background: var(--code-bg);
+  padding: 7px 12px;
+  border-bottom: 1.5px solid var(--border);
+}
+.editors .vditor-reset td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+
+/* 链接与图片 */
+.editors .vditor-reset a { color: var(--accent); text-decoration: none; }
+.editors .vditor-reset a:hover { text-decoration: underline; }
+.editors .vditor-reset img { border-radius: 6px; }
+
+/* 分隔线：保持 vditor IR 的 100% 可点击宽度，只调成纸色 */
+.editors .vditor-reset hr { border: none; height: 1px; background: var(--border); margin: 1.6em 0; }
+
+/* 选区与任务列表勾选框跟随主题 */
+.editors .vditor-reset ::selection { background: var(--selection); }
+.editors .vditor-reset input[type='checkbox'] { accent-color: var(--accent); }

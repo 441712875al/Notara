@@ -38,6 +38,10 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
       toolbar: [],
       height: '100%',
       cdn: './vditor', // 指向 public/vditor（脚本拷贝），离线可用
+      // 注意不要传 preview 子对象：vditor 对 options 是浅合并（仅 math 特判深合并），
+      // 传部分 preview（如 maxWidth）会整体替换默认值，丢失 theme/hljs 子对象，
+      // 导致暗色切换时 setTheme 内 preview.theme.current 赋值抛错、高亮主题无法联动。
+      // 内容列宽度因此保持默认 preview.maxWidth=800（setPadding 据此居中限宽）
       outline: { enable: true, position: 'left' },
       input: () => onInputRef.current(tabId),
       // vditor 构造返回时 this.vditor 尚未定义（init 在 i18n 脚本加载后才异步执行），
@@ -49,10 +53,10 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
           return
         }
         editors.set(tabId, vd)
-        // 暗色用户开新标签：初始化即补 .vditor--dark（applyThemeToDom 只在切主题时刷新），
-        // 避免编辑器先亮后黑。
+        // 暗色用户开新标签：初始化即切暗色（applyThemeToDom 只在切主题时刷新），
+        // 避免编辑器先亮后黑。setTheme 一站式换类 + content-theme + 暗色代码高亮
         if (document.documentElement.dataset.theme === 'dark') {
-          vd.vditor.element.classList.add('vditor--dark')
+          vd.setTheme('dark', 'dark', 'github-dark')
         }
         if (activeRef.current) vd.focus()
       }
