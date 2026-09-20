@@ -31,6 +31,7 @@ const api: NotaraApi = {
   listRecent: () => invoke('recent:list'),
   getTheme: () => invoke('theme:get'),
   setTheme: (setting) => invoke('theme:set', { setting }),
+  importTyporaTheme: (sourcePath) => invoke('theme:import-typora', { sourcePath }),
   flushDone: () => invoke('app:flush-done'),
   allowClose: () => invoke('app:allow-close'),
   quitPending: () => invoke('app:quit-pending'),

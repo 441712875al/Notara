@@ -27,6 +27,10 @@ export async function installMenu(): Promise<void> {
     themeItems.push({ type: 'separator' })
     for (const t of themeInfo.customThemes) themeItems.push(radio(t.name, t.name))
   }
+  themeItems.push(
+    { type: 'separator' },
+    { label: '导入 Typora 主题…', click: () => sendFocused('import-typora-theme') }
+  )
 
   const template: MenuItemConstructorOptions[] = [
     {

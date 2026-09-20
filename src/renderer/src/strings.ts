@@ -1,4 +1,6 @@
 // 全部 UI 文案集中于此（设计文档 §6.5）
+import type { TyporaImportResult } from '@shared/types'
+
 export const s = {
   app: { name: 'Notara' },
   tab: {
@@ -28,6 +30,12 @@ export const s = {
     imageSaveFailed: (msg: string) => `图片保存失败: ${msg}`,
     exportFirst: '请先保存文件，再导出',
     exportFailed: (msg: string) => `导出失败: ${msg}`,
+    themeImported: (r: TyporaImportResult) =>
+      `已导入主题「${r.name}」并应用：转换 ${r.rulesMapped} 条规则` +
+      (r.assetsCopied > 0 ? `、复制 ${r.assetsCopied} 个资源` : '') +
+      (r.missingAssets.length > 0 ? `、${r.missingAssets.length} 个资源缺失` : '') +
+      (r.selectorsDropped.length > 0 ? '；未映射的选择器见主题文件头注释' : ''),
+    themeImportFailed: (msg: string) => `导入 Typora 主题失败: ${msg}`,
   },
   tree: {
     newFile: '新建文件', newFolder: '新建文件夹', rename: '重命名', del: '删除',

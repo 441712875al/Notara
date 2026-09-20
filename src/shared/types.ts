@@ -31,6 +31,37 @@ export interface ThemeInfo {
   customThemes: { name: string }[]
 }
 
+// ── Typora 主题导入 ─────────────────────────────────────
+/** 主题包内相对资源（字体/图片）的落点：转换时逐个解析，主进程照单复制 */
+export interface TyporaAssetMapping {
+  /** 主题里的原始引用（如 ./fonts/x.woff2） */
+  relativeUrl: string
+  /** 生成 CSS 中实际写出的 url（已复制资源为 file:// 绝对地址；缺失资源原样保留） */
+  emitUrl: string
+  /** 可复制的源文件绝对路径；缺失资源为 null */
+  copyFrom: string | null
+  /** 复制目标绝对路径（与 copyFrom 同时存在） */
+  destPath: string | null
+}
+
+/** 转换报告：导入 toast 的摘要 + 写进主题文件头注释的完整记录 */
+export interface TyporaImportResult {
+  name: string
+  /** 变量桥接明细，如 '--primary-color → --accent' */
+  varsBridged: string[]
+  /** 未能桥接的 Typora 变量名 */
+  varsDropped: string[]
+  /** 转换产出的规则条数（不含变量块） */
+  rulesMapped: number
+  /** 未映射的选择器（至多 30 个，完整清单见主题文件头注释同源） */
+  selectorsDropped: string[]
+  /** 成功复制的资源数 */
+  assetsCopied: number
+  /** 找不到源文件的资源引用 */
+  missingAssets: string[]
+  notes: string[]
+}
+
 // ── 窗口状态 ────────────────────────────────────────────
 export interface WindowStatePayload {
   workspaceRoot: string | null
@@ -68,6 +99,7 @@ export type MenuAction =
   | 'format-link'
   | 'toggle-sidebar'
   | 'toggle-outline'
+  | 'import-typora-theme'
   | `set-theme:${string}`
 
 export type MainEvent =
@@ -124,6 +156,8 @@ export interface NotaraApi {
   listRecent(): Promise<RecentWorkspace[]>
   getTheme(): Promise<ThemeInfo>
   setTheme(setting: ThemeSetting): Promise<ThemeInfo>
+  /** 导入 Typora 主题包：sourcePath 缺省时主进程弹选择框；用户取消返回 null */
+  importTyporaTheme(sourcePath?: string): Promise<TyporaImportResult | null>
   // 应用生命周期
   flushDone(): Promise<void>
   allowClose(): Promise<void>

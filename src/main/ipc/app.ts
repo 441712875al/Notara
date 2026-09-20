@@ -5,6 +5,7 @@ import { installMenu } from '../menu'
 import { stateService } from '../window'
 import { ackFlushDone, cancelQuit, quitPendingDialog } from '../quit'
 import { themeService } from '../services/themeService'
+import { typoraImporter } from '../services/typoraImportService'
 import type { OpenDialogResult, ThemeSetting, WindowStatePayload } from '@shared/types'
 
 export function registerAppIpc(): void {
@@ -29,6 +30,14 @@ export function registerAppIpc(): void {
     const info = await themeService.setThemeSetting(p.setting)
     void installMenu()
     return info
+  })
+
+  // Typora 主题导入：sourcePath 缺省时主进程弹选择框（取消返回 null）；
+  // 成功后重建菜单让新主题出现在主题列表里
+  registerIpc(Channels.ThemeImportTypora, async (p: { sourcePath?: string }) => {
+    const result = await typoraImporter(p?.sourcePath)
+    if (result) void installMenu()
+    return result
   })
 
   // 退出握手：渲染侧 flush 完成后 ack，主进程在收齐（或超时）后退出

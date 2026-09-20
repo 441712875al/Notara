@@ -133,6 +133,19 @@ export async function handleMenuAction(action: MenuAction): Promise<void> {
       }
       return
     }
+    case 'import-typora-theme': {
+      // 主进程完成选文件/转换/落盘；null 为用户取消
+      try {
+        const r = await api.importTyporaTheme()
+        if (!r) return
+        const { useThemeStore } = await import('../stores/theme')
+        await useThemeStore.getState().set(r.name)
+        useUi.getState().notify(s.toast.themeImported(r))
+      } catch (e) {
+        useUi.getState().notify(s.toast.themeImportFailed(parseIpcError(e).message))
+      }
+      return
+    }
     default:
       if (action.startsWith('set-theme:')) {
         const { useThemeStore } = await import('../stores/theme')

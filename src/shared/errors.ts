@@ -16,5 +16,6 @@ export const ErrorCodes = {
   InvalidName: 'invalid-name',
   TargetExists: 'target-exists',
   Cancelled: 'cancelled',
+  ThemeImportFailed: 'theme-import-failed',
   Unknown: 'unknown'
 } as const

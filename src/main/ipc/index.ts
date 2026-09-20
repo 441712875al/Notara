@@ -21,6 +21,7 @@ export const Channels = {
   RecentList: 'recent:list',
   ThemeGet: 'theme:get',
   ThemeSet: 'theme:set',
+  ThemeImportTypora: 'theme:import-typora',
   AppFlushDone: 'app:flush-done',
   AppAllowClose: 'app:allow-close',
   AppQuitPending: 'app:quit-pending',
