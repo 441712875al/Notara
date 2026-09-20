@@ -76,20 +76,21 @@
   border-radius: 4px;
 }
 /* 代码块：桌面色底 + 发丝边，像稿纸上贴的一张便签。
-   IR 的代码块 node 含两份 pre——平时显示 pre.vditor-ir__preview（渲染态），
-   光标进入后切换为 pre.vditor-ir__marker--pre（源码态），两者都要设底板才不跳变。
-   padding 用 !important 对抗 vditor 对折叠态 marker 的 `padding:0 !important`
-   （其意图是标记符不占边距，与代码块需要内边距的意图在 marker-pre 上冲突） */
+   IR 的代码块 node 含两份 pre——平时显示 pre.vditor-ir__preview（渲染态）；
+   光标进入后切换为 pre.vditor-ir__marker--pre（源码态），只在展开态给它底板。
+   折叠态的源码 pre 绝不能命中本规则：vditor 靠 width/height:0 + `padding:0 !important`
+   把它压成零占位，若在此处全局覆盖 padding（哪怕为对抗它加 !important），
+   折叠源码 pre 会重新占位，带着底板变成代码块前的空白矩形块 */
 .editors .vditor-reset pre.vditor-ir__preview,
-.editors .vditor-reset pre.vditor-ir__marker--pre {
+.editors .vditor-reset .vditor-ir__node--expand pre.vditor-ir__marker--pre {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 13px 16px !important;
+  padding: 13px 16px;
   margin: 0 0 0.9em;
 }
 .editors .vditor-reset pre.vditor-ir__preview code,
-.editors .vditor-reset pre.vditor-ir__marker--pre code {
+.editors .vditor-reset .vditor-ir__node--expand pre.vditor-ir__marker--pre code {
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.65;
