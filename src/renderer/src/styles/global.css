@@ -24,7 +24,19 @@ body {
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
 }
-.tabbar-tabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; -webkit-app-region: no-drag; }
+/* 标签容器按内容宽度排布，不吃满整条——flex:1 会把 no-drag 区铺满全宽，
+   顶栏便无处可拖、双击也无法缩放（macOS 系统行为依赖真实 drag 区域）；
+   标签右侧的空白留在 .tabbar 的 drag 区内；溢出时收缩滚动，
+   且再满也保住 80px（扣除 + 按钮与右内距后仍有余量可拖） */
+.tabbar-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 80px);
+  -webkit-app-region: no-drag;
+}
 .tab {
   display: flex;
   align-items: center;
