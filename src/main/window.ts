@@ -19,7 +19,8 @@ export async function createWindow(): Promise<BrowserWindow> {
     minHeight: 400,
     show: false,
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    // y=12：红绿灯（12px 高）在 36px 标签栏内垂直居中
+    trafficLightPosition: { x: 16, y: 12 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

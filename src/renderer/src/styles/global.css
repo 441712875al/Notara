@@ -7,8 +7,8 @@ body {
 }
 .app { height: 100%; }
 
-/* 标签栏 */
-.tabbar { display: flex; align-items: center; height: 36px; padding: 0 8px; user-select: none; -webkit-app-region: drag; }
+/* 标签栏：左侧为红绿灯（native 按钮横跨约 x=16~68）留出避让区，其余区域可拖拽移动窗口 */
+.tabbar { display: flex; align-items: center; height: 36px; padding: 0 8px 0 78px; user-select: none; -webkit-app-region: drag; }
 .tabbar-tabs { display: flex; gap: 2px; overflow-x: auto; flex: 1; -webkit-app-region: no-drag; }
 .tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: 13px; color: var(--fg-secondary); }
 .tab.active { background: var(--bg-elevated); color: var(--fg); }
@@ -34,8 +34,15 @@ body {
 /* 侧边栏与主区两栏 */
 .main-area { display: flex; flex: 1; min-height: 0; }
 .sidebar { width: 220px; border-right: 1px solid var(--border); background: var(--bg-elevated); overflow-y: auto; padding-top: 0; }
-/* 零标签（无 TabBar）时为红绿灯预留顶部空间；有 TabBar 时 TabBar 自身即占位 */
-.app:not(:has(.tabbar)) .sidebar { padding-top: 36px; }
+/* 零标签（无 TabBar）时顶部补一条与 TabBar 等高的可拖拽标题区：
+   既为红绿灯占位（替代原先 sidebar 的 padding-top），也让该状态下窗口可拖动 */
+.app:not(:has(.tabbar))::before {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+}
 .sidebar-title { font-size: 12px; font-weight: 600; color: var(--fg-secondary); padding: 8px 12px; }
 /* 文件树 */
 .tree-node { display: flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 13px; cursor: pointer; border-radius: 4px; margin: 0 4px; }
