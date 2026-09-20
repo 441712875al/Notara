@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 import { editors } from '../lib/editorRegistry'
+import { setupCodeBlockHighlight } from '../lib/codeBlockHighlight'
 import { attachImageHandlers } from '../lib/imagePaste'
 
 interface EditorProps {
@@ -30,6 +31,7 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
 
     let disposed = false
     let ready = false
+    let detachHighlight: () => void = () => {}
     const vd = new Vditor(mount, {
       mode: 'ir',
       lang: 'zh_CN',
@@ -53,6 +55,8 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
           return
         }
         editors.set(tabId, vd)
+        // 代码块就地高亮（Typora 式）：必须在 init 完成后挂（observer 目标是 vditor 容器）
+        detachHighlight = setupCodeBlockHighlight(vd)
         // 暗色用户开新标签：初始化即切暗色（applyThemeToDom 只在切主题时刷新），
         // 避免编辑器先亮后黑。setTheme 一站式换类 + content-theme + 暗色代码高亮
         if (document.documentElement.dataset.theme === 'dark') {
@@ -65,6 +69,7 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
     const detachImageHandlers = attachImageHandlers(vd, host, tabId)
     return () => {
       disposed = true
+      detachHighlight()
       detachImageHandlers()
       editors.delete(tabId)
       mount.remove()

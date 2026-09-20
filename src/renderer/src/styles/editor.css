@@ -10,6 +10,9 @@
    CSS 只做纯排版（字体/行高/光标色）+ 顶部留白（!important 压 setPadding 内联简写的 10px top） */
 .editors .vditor {
   --editor-bottom: 40vh;
+  /* 代码块底板内距：源码 pre 与高亮 overlay 共用同一变量，
+     两层排版逐像素对齐的前提（见文件末尾就地高亮段） */
+  --code-block-pad: 13px 16px;
 }
 .editors .vditor-ir pre.vditor-reset {
   font-family: var(--font-prose);
@@ -86,7 +89,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 13px 16px;
+  padding: var(--code-block-pad);
   margin: 0 0 0.9em;
 }
 .editors .vditor-reset pre.vditor-ir__preview code,
@@ -96,6 +99,11 @@
   line-height: 1.65;
   background: none;
   padding: 0;
+  /* 与下方 .notara-code-overlay code 显式同参（Typora 式软折行）：
+     对齐层两侧必须逐像素一致，不赌继承链 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-variant-ligatures: no-common-ligatures;
 }
 /* 代码块的就地编辑观感（Typora 式）：vditor 展开为源码态时会同时显示 ``` 围栏
    （node 伪元素）与渲染态 preview（两份并排），且源码无高亮——视觉上像「另起一段源码」。
@@ -108,6 +116,72 @@
 }
 .editors .vditor-ir__node--expand .vditor-ir__preview {
   display: none; /* 去掉与源码并排的第二份渲染 */
+}
+/* 语言标注：源码 pre 块化后，行内的 info 标记（​js）会被挤成 pre 上方的匿名行、
+   贴左无边距——改为悬在块右上角的小字标注（Typora 式），脱离文档流后匿名行随之消失。
+   span 仍在 DOM 中可点击编辑语言，输入触发 Spin → observer 以新语言重挂 overlay。 */
+.editors .vditor-reset .vditor-ir__node--expand[data-type='code-block'] {
+  position: relative; /* 语言标注的定位锚 */
+}
+.editors .vditor-reset .vditor-ir__node--expand[data-type='code-block'] .vditor-ir__marker--info {
+  position: absolute;
+  right: 0;
+  bottom: 100%; /* 标注底边贴块的上边线，悬在块外 */
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--fg-secondary);
+  white-space: pre; /* info 首字符是 ZWSP，按原样排 */
+}
+
+/* 代码块就地高亮（Typora 式）：源码 code 文字透明，overlay 高亮副本盖在其上。
+   - 源码 pre 为定位锚；overlay inset:0 + 与 pre 同源的 --code-block-pad，
+     内部 code 与源码 code 同字体/字号/行高/折行参（上上段已显式对齐），
+     两层文字逐像素重合，视觉即「同一份代码带高亮」。
+   - 序列化安全：overlay 是 <div>，Lute 实测 VditorIRDOM2Md 完全忽略；
+     每次输入 Spin 会剥离它，codeBlockHighlight.ts 的 observer 重挂。
+   - 选区为半透明 --selection，选中时下层高亮仍可辨。 */
+.editors .vditor-reset .vditor-ir__node--expand[data-type='code-block'] pre.vditor-ir__marker--pre {
+  position: relative; /* overlay 的定位锚 */
+  /* 显式 block 化：vditor 为 IR 行内流把展开态 marker 系列设为 display:inline（dist 1662 行），
+     inline 做 absolute 定位锚不可靠（overlay 会按第一 inline 盒错位），语义上它本就是块级容器。
+     display 只能加在此处——若并入上方共享底板规则，`pre.vditor-ir__preview` 侧的 (0,3,1)
+     会压过下方隐藏规则的 (0,3,0)，展开态第二份渲染会重新露出（e2e 实证）。
+     折叠态不命中本规则，保持 vditor 的零占位。 */
+  display: block;
+  /* 关掉 vditor 给 marker 系的 transition: all：底板 padding/border 若做 150ms 过渡，
+     overlay（无过渡、立即按最终内距排版）会在过渡期内与源码文字错位达一个 padding 之差；
+     展开改为瞬时到位，与 preview↔源码的瞬时切换一致。行内 marker（加粗等）的过渡不受影响。 */
+  transition: none;
+}
+.editors .vditor-reset .vditor-ir__node--expand pre.vditor-ir__marker--pre > code {
+  color: transparent; /* 真实源码只留光标，字形交给 overlay */
+  caret-color: var(--accent); /* color 透明不影响 caret-color，显式钉住墨水蓝光标 */
+}
+.editors .notara-code-overlay {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: var(--code-block-pad);
+  border: none;
+  background: none;
+  pointer-events: none; /* 鼠标完全穿透到源码层 */
+  user-select: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.editors .notara-code-overlay code {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+  background: none;
+  padding: 0;
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-variant-ligatures: no-common-ligatures;
 }
 
 /* 表格：三线谱（顶线/表头下线/底线），去掉 GitHub 斑马纹与网格 */
