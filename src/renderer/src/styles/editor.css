@@ -97,6 +97,18 @@
   background: none;
   padding: 0;
 }
+/* 代码块的就地编辑观感（Typora 式）：vditor 展开为源码态时会同时显示 ``` 围栏
+   （node 伪元素）与渲染态 preview（两份并排），且源码无高亮——视觉上像「另起一段源码」。
+   此处把围栏与 preview 隐藏，展开态只留一块与渲染版同容器、同底板的编辑区：
+   进入编辑的观感变成「同一块代码区域，高亮暂退为纯色文本」。
+   序列化不受影响（Lute 按 DOM 结构转 markdown，与 CSS display 无关，e2e 已实测围栏仍落盘）。 */
+.editors .vditor-ir__node--expand[data-type='code-block']::before,
+.editors .vditor-ir__node--expand[data-type='code-block']::after {
+  content: none; /* 去掉 ``` 围栏符号 */
+}
+.editors .vditor-ir__node--expand .vditor-ir__preview {
+  display: none; /* 去掉与源码并排的第二份渲染 */
+}
 
 /* 表格：三线谱（顶线/表头下线/底线），去掉 GitHub 斑马纹与网格 */
 .editors .vditor-reset table { border-collapse: collapse; border-top: 1.5px solid var(--border); margin: 0 0 1em; }
