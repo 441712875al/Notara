@@ -67,6 +67,8 @@ export interface WindowStatePayload {
   workspaceRoot: string | null
   tabPaths: string[]
   activeIndex: number
+  /** 侧栏宽度（px）；0 = 已收起。旧状态文件无此字段，读侧按默认值兜底 */
+  sidebarWidth?: number
 }
 
 /** 窗口位置尺寸（与 Electron.Rectangle 结构一致；此处独立声明以便渲染侧引用） */

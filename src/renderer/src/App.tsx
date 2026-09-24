@@ -8,7 +8,7 @@ import { ContextMenu, type ContextMenuItem } from './components/ContextMenu'
 import { NamePromptModal } from './components/NamePromptModal'
 import { Welcome } from './components/Welcome'
 import { useTabs } from './stores/tabs'
-import { useUi } from './stores/ui'
+import { useUi, SIDEBAR_DEFAULT } from './stores/ui'
 import { useWorkspace } from './stores/workspace'
 import { useThemeStore } from './stores/theme'
 import { api } from './lib/api'
@@ -34,7 +34,8 @@ function persistWindowState(): void {
       .filter((t) => !t.deleted)
       .map((t) => t.path)
       .filter((p): p is string => p !== null),
-    activeIndex: tabs.activeIndex
+    activeIndex: tabs.activeIndex,
+    sidebarWidth: useUi.getState().sidebarWidth
   }).catch(() => {})
 }
 
@@ -79,7 +80,6 @@ export function App() {
   const activeIndex = useTabs((st) => st.activeIndex)
   const setActive = useTabs((st) => st.setActive)
   const notify = useUi((st) => st.notify)
-  const sidebarVisible = useUi((st) => st.sidebarVisible)
   const outlineVisible = useUi((st) => st.outlineVisible)
   const confirm = useUi((st) => st.confirm)
   const toasts = useUi((st) => st.toasts)
@@ -272,6 +272,10 @@ export function App() {
     if (restoredRef.current) return
     restoredRef.current = true
     void (async () => {
+      // 侧栏宽度只跟「上次会话」有关，与启动参数分支无关，故先读、先恢复，
+      // 顺带把这次读到的窗口状态留着给下面的恢复分支用
+      const st = await api.getWindowState()
+      useUi.getState().setSidebarWidth(st?.payload.sidebarWidth ?? SIDEBAR_DEFAULT)
       const launch = await api.getLaunchOpen()
       if (launch) {
         const stat = await api.readFile(launch).then(
@@ -285,7 +289,6 @@ export function App() {
         }
         return
       }
-      const st = await api.getWindowState()
       if (!st?.payload.workspaceRoot) return
       await useWorkspace.getState().open(st.payload.workspaceRoot)
       // 打开失败（已 toast 并回滚 root）：不再恢复标签，避免留下无工作区的游离标签
@@ -305,6 +308,16 @@ export function App() {
     if (outlineVisible) delete document.documentElement.dataset.outlineHidden
     else document.documentElement.dataset.outlineHidden = 'true'
   }, [outlineVisible])
+
+  // 侧栏宽度上限随窗口变窄而收（clampSidebarWidth 按 innerWidth 算），尺寸变化后重夹一次，
+  // 免得侧栏把正文挤没。收起态（0）经重夹仍是 0，不受影响
+  useEffect(() => {
+    const onResize = (): void => {
+      useUi.getState().setSidebarWidth(useUi.getState().sidebarWidth)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // 输入 → 脏标记 + 防抖保存
   const handleInput = (tabId: number): void => {
@@ -457,28 +470,36 @@ export function App() {
           onClose={handleClose}
           onNew={() => useTabs.getState().openUntitled()}
         />
-      ) : (
-        <Welcome
-          recents={recents}
-          onOpenFolder={() => void openFolder()}
-          onNewFile={() => void handleMenuAction('new-file')}
-          onOpenRecent={(r) => void openRecent(r)}
-        />
-      )}
+      ) : null}
       <div className="main-area">
-        {sidebarVisible && root !== null ? (
+        {/* 侧栏常驻（收起只把宽度归零，见 ui store 的 sidebarWidth）：文件树的展开态是
+            组件局部 state，按条件卸载会丢。宽窄与分界线由 Sidebar 自己带出 */}
+        {root !== null ? (
           <Sidebar onOpenFile={(p) => void openPath(p)} onContext={openTreeContextMenu} />
         ) : null}
-        <div className="editors">
-          {tabs.map((t, i) => (
-            <Editor
-              key={t.id}
-              tabId={t.id}
-              initial={t.initialContent}
-              active={i === activeIndex}
-              onInput={handleInput}
+        {/* 正文列：无标签时是欢迎扉页，有标签时是编辑器堆叠，两态互斥不并存。
+            扉页若与侧栏平级（曾如此）会把侧栏挤到左下角只剩半截高，故一并收进本列 */}
+        <div className="content">
+          {tabs.length > 0 ? (
+            <div className="editors">
+              {tabs.map((t, i) => (
+                <Editor
+                  key={t.id}
+                  tabId={t.id}
+                  initial={t.initialContent}
+                  active={i === activeIndex}
+                  onInput={handleInput}
+                />
+              ))}
+            </div>
+          ) : (
+            <Welcome
+              recents={recents}
+              onOpenFolder={() => void openFolder()}
+              onNewFile={() => void handleMenuAction('new-file')}
+              onOpenRecent={(r) => void openRecent(r)}
             />
-          ))}
+          )}
         </div>
       </div>
       <ConfirmModal />

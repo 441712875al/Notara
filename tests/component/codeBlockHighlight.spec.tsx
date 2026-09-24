@@ -134,6 +134,19 @@ describe('syncOverlays', () => {
     expect(host.querySelector('.notara-code-overlay')).toBeNull()
   })
 
+  it('折叠后再展开同一元素：overlay 无条件重建（不依赖内容签名缓存）', () => {
+    makeCodeBlock(host, true, 'js', 'const a = 1')
+    syncOverlays(host)
+    const node = host.querySelector('.vditor-ir__node')!
+    node.classList.remove('vditor-ir__node--expand')
+    syncOverlays(host)
+    expect(host.querySelector('.notara-code-overlay')).toBeNull()
+    node.classList.add('vditor-ir__node--expand')
+    syncOverlays(host) // 内容未变，但副本已随折叠清理，必须重建
+    expect(host.querySelector('.notara-code-overlay')).not.toBeNull()
+    expect(host.querySelector('.notara-code-overlay code')!.textContent).toBe('const a = 1')
+  })
+
   it('源码内容变化时 overlay 更新；未变化时不重写（签名短路）', () => {
     makeCodeBlock(host, true, 'js', 'const a = 1')
     syncOverlays(host)

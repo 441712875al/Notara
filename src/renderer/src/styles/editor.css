@@ -103,6 +103,7 @@
      对齐层两侧必须逐像素一致，不赌继承链 */
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
   font-variant-ligatures: no-common-ligatures;
 }
 /* 代码块的就地编辑观感（Typora 式）：vditor 展开为源码态时会同时显示 ``` 围栏
@@ -155,9 +156,14 @@
      展开改为瞬时到位，与 preview↔源码的瞬时切换一致。行内 marker（加粗等）的过渡不受影响。 */
   transition: none;
 }
-.editors .vditor-reset .vditor-ir__node--expand pre.vditor-ir__marker--pre > code {
-  color: transparent; /* 真实源码只留光标，字形交给 overlay */
-  caret-color: var(--accent); /* color 透明不影响 caret-color，显式钉住墨水蓝光标 */
+.editors .vditor-reset .vditor-ir__node--expand[data-type='code-block'] pre.vditor-ir__marker--pre > code {
+  /* 源码层字形必须让位给 overlay，否则与高亮副本重叠成「两层显示 / 错码」。
+     自定义主题（Typora 导入）会把 code 颜色规则映射到本选择器（同特异性、源码序更晚），
+     普通 color:transparent 会被顶掉——用 [data-type='code-block'] 提特异到 (0,5,2) 再 !important，
+     压过主题的同选择器 !important；补 -webkit-text-fill-color 双保险（独立于 color、优先级更高）。 */
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--accent) !important; /* caret-color 独立于 color/text-fill-color，显式钉住墨水蓝光标 */
 }
 .editors .notara-code-overlay {
   position: absolute;
@@ -171,6 +177,7 @@
   overflow: hidden;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
 }
 .editors .notara-code-overlay code {
   font-family: var(--font-mono);
@@ -181,19 +188,41 @@
   display: block;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
   font-variant-ligatures: no-common-ligatures;
 }
 
-/* 表格：三线谱（顶线/表头下线/底线），去掉 GitHub 斑马纹与网格 */
-.editors .vditor-reset table { border-collapse: collapse; border-top: 1.5px solid var(--border); margin: 0 0 1em; }
+/* 表格：三线谱（顶线/表头下线/底线）+ 自动列宽。
+   vditor 默认把 table 设为 display:block、td/th white-space:nowrap、table word-break:keep-all：
+   列宽按各自最长内容定格且一律不换行，结果是短列过窄、长列溢出、文字被挤变形。
+   此处改回真实表格布局（display:table + width:100% + table-layout:auto），并放开单元格换行，
+   浏览器即按内容自动分配列宽；超长无空格 token 用 overflow-wrap:anywhere 兜底——
+   它同时收缩 min-content，使 table-layout:auto 在定宽时能把超长词断行，
+   而 break-word 不影响内在尺寸，列仍会被超长词撑破溢出。 */
+.editors .vditor-reset table {
+  border-collapse: collapse;
+  table-layout: auto;
+  width: 100%;
+  display: table;
+  border-top: 1.5px solid var(--border);
+  margin: 0 0 1em;
+  word-break: normal;
+}
 .editors .vditor-reset tr { background: transparent; }
 .editors .vditor-reset th {
   font-weight: 600;
   background: var(--code-bg);
   padding: 7px 12px;
   border-bottom: 1.5px solid var(--border);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
-.editors .vditor-reset td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+.editors .vditor-reset td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* 链接与图片 */
 .editors .vditor-reset a { color: var(--accent); text-decoration: none; }

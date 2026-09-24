@@ -15,6 +15,13 @@ import type Vditor from 'vditor'
 
 const OVERLAY_CLASS = 'notara-code-overlay'
 
+/** 已高亮签名缓存：键为源码 code 元素，值为其 textContent。
+ *  之前用 DOM 属性 data-sig 存整份高亮 HTML——大代码块时该属性可达数十 KB，
+ *  每次输入 vditor 都会把 block 的 outerHTML（含该巨量属性）交给 Lute Spin 重解析，
+ *  既拖慢输入又可能因属性含转义引号/尖括号导致解析异常（「错码」的诱因之一）。
+ *  改用 JS 侧 WeakMap，不污染 DOM、随 Spin 重建的元素自动失效。 */
+const highlightedSig = new WeakMap<Element, string>()
+
 /** vditor highlightRender 同款：这些语言由各渲染器画成图/公式，不做语法高亮 */
 const NO_HIGHLIGHT_LANGS = new Set([
   'mermaid',
@@ -90,24 +97,27 @@ export function syncOverlays(host: HTMLElement): void {
   host.querySelectorAll(".vditor-ir__node--expand[data-type='code-block']").forEach((node) => {
     const srcCode = node.querySelector(':scope > .vditor-ir__marker--pre > code')
     if (!srcCode) return
-    const want = renderOverlayHtml(srcCode)
     // overlay 挂在源码 pre 内部（code 的兄弟）：absolute 相对 pre（position:relative）定位，
     // inset:0 即重合 pre 的 padding box；Lute 实测序列化忽略 pre 内的 div、Spin 会剥离重挂
     const existing = srcCode.parentElement!.querySelector<HTMLDivElement>(
       `:scope > .${OVERLAY_CLASS}`
     )
+    const text = srcCode.textContent ?? ''
     if (existing) {
-      if (existing.dataset.sig !== want) {
-        existing.dataset.sig = want
-        existing.innerHTML = want
+      // 签名取 textContent：内容未变则跳过（幂等，避免无关 mutation 触发高亮重算与重写振荡）
+      if (highlightedSig.get(srcCode) !== text) {
+        highlightedSig.set(srcCode, text)
+        existing.innerHTML = renderOverlayHtml(srcCode)
       }
       return
     }
+    // 无副本则挂载：不依赖签名缓存——折叠→再展开时源码元素可能未重建（仅 class 切换），
+    // 缓存仍在但副本已被折叠清理，必须无条件重建
     const overlay = document.createElement('div')
     overlay.className = OVERLAY_CLASS
     overlay.setAttribute('aria-hidden', 'true') // 视觉层，屏幕阅读器读源码 code 的真实文本
-    overlay.dataset.sig = want
-    overlay.innerHTML = want
+    overlay.innerHTML = renderOverlayHtml(srcCode)
+    highlightedSig.set(srcCode, text)
     srcCode.insertAdjacentElement('afterend', overlay)
   })
 }
@@ -120,8 +130,16 @@ export function syncOverlays(host: HTMLElement): void {
  */
 export function setupCodeBlockHighlight(vd: Vditor): () => void {
   const host = vd.vditor.element
+  // 除 childList（Spin 整块替换）外也监听 characterData：个别输入路径（如直接文本节点
+  // 变更、未触发整块重整的局部编辑）只会产生文本突变，漏掉会导致 overlay 内容陈旧（错码）。
   const observer = new MutationObserver(() => syncOverlays(host))
-  observer.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+  observer.observe(host, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class'],
+    characterData: true
+  })
   syncOverlays(host)
   return () => observer.disconnect()
 }

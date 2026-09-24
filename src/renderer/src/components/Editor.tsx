@@ -3,6 +3,7 @@ import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 import { editors } from '../lib/editorRegistry'
 import { setupCodeBlockHighlight } from '../lib/codeBlockHighlight'
+import { setupCodeBlockCopy } from '../lib/codeBlockCopy'
 import { attachImageHandlers } from '../lib/imagePaste'
 
 interface EditorProps {
@@ -32,6 +33,7 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
     let disposed = false
     let ready = false
     let detachHighlight: () => void = () => {}
+    let detachCopy: () => void = () => {}
     const vd = new Vditor(mount, {
       mode: 'ir',
       lang: 'zh_CN',
@@ -57,6 +59,8 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
         editors.set(tabId, vd)
         // 代码块就地高亮（Typora 式）：必须在 init 完成后挂（observer 目标是 vditor 容器）
         detachHighlight = setupCodeBlockHighlight(vd)
+        // 代码块复制按钮：vditor 的内联 onclick 被 CSP 拦截，事件委托接管
+        detachCopy = setupCodeBlockCopy(vd)
         // 暗色用户开新标签：初始化即切暗色（applyThemeToDom 只在切主题时刷新），
         // 避免编辑器先亮后黑。setTheme 一站式换类 + content-theme + 暗色代码高亮
         if (document.documentElement.dataset.theme === 'dark') {
@@ -70,6 +74,7 @@ export function Editor({ tabId, initial, active, onInput }: EditorProps) {
     return () => {
       disposed = true
       detachHighlight()
+      detachCopy()
       detachImageHandlers()
       editors.delete(tabId)
       mount.remove()

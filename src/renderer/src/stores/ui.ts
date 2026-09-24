@@ -26,6 +26,31 @@ export interface NamePromptRequest {
   onSubmit: (name: string) => void
 }
 
+/** 侧栏宽度下限：窄于此则判为「要收起」，而不是挤成一条读不了的缝 */
+export const SIDEBAR_MIN = 160
+/** 侧栏宽度上限 */
+export const SIDEBAR_MAX = 520
+/** 侧栏默认宽度 */
+export const SIDEBAR_DEFAULT = 220
+/** 侧栏再宽也要给正文留出的最小宽度（窄窗口里限制拖动上限） */
+const CONTENT_MIN = 360
+
+/** 当前窗口换算出的侧栏上限：窗口越窄上限越低，免得侧栏把正文挤没 */
+function sidebarMaxWidth(): number {
+  // 无 window 的环境（单测的 node 环境）取最大上限
+  const viewport = typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth
+  return Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, viewport - CONTENT_MIN))
+}
+
+/**
+ * 归一化侧栏宽度：小于下限一律折成 0（收起），否则夹进 [下限, 上限]。
+ * 「拖到最窄之外即收起」由这里统一决定，拖动、键盘、恢复都共用同一条规则。
+ */
+export function clampSidebarWidth(w: number): number {
+  if (!Number.isFinite(w) || w < SIDEBAR_MIN) return 0
+  return Math.min(Math.round(w), sidebarMaxWidth())
+}
+
 interface UiState {
   toasts: Toast[]
   notify: (text: string) => void
@@ -34,7 +59,11 @@ interface UiState {
   askConfirm: (req: ConfirmRequest) => void
   resolveConfirm: (ok: boolean) => void
   resolveDiscard: () => void
-  sidebarVisible: boolean
+  /** 侧栏宽度（px）；0 = 已收起。侧栏常驻挂载，收起与否只改宽度，文件树的展开态因此不会丢 */
+  sidebarWidth: number
+  /** 收起前的宽度，供 toggleSidebar 再次展开时还原 */
+  sidebarRestoreWidth: number
+  setSidebarWidth: (w: number) => void
   toggleSidebar: () => void
   outlineVisible: boolean
   toggleOutline: () => void
@@ -78,9 +107,20 @@ export const useUi = create<UiState>((set, get) => ({
     set({ confirm: null })
     c?.discard?.onDiscard()
   },
-  sidebarVisible: true,
+  sidebarWidth: SIDEBAR_DEFAULT,
+  sidebarRestoreWidth: SIDEBAR_DEFAULT,
+  setSidebarWidth(w) {
+    const width = clampSidebarWidth(w)
+    // 只在展开态更新记忆宽度：收起（0）不该把自己的记忆抹掉，否则 ⌘\ 展不回来
+    set((st) => ({
+      sidebarWidth: width,
+      sidebarRestoreWidth: width > 0 ? width : st.sidebarRestoreWidth
+    }))
+  },
   toggleSidebar() {
-    set((st) => ({ sidebarVisible: !st.sidebarVisible }))
+    set((st) => ({
+      sidebarWidth: st.sidebarWidth > 0 ? 0 : clampSidebarWidth(st.sidebarRestoreWidth)
+    }))
   },
   outlineVisible: true,
   toggleOutline() {

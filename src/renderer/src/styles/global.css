@@ -85,16 +85,105 @@ body {
   -webkit-app-region: drag;
 }
 
-/* 侧边栏与主区两栏 */
+/* 侧栏与正文列两栏：侧栏是「桌面」（bg-elevated），正文是「纸」（bg）。
+   两栏都从标题条下缘贯到窗口底，无论正文里放的是扉页还是编辑器 */
 .main-area { display: flex; flex: 1; min-height: 0; }
-.sidebar { width: 220px; border-right: 1px solid var(--border); background: var(--bg-elevated); overflow-y: auto; }
+/* 宽度由 ui store 的 sidebarWidth 内联给出（0 = 已收起），故此处只锁纵向：
+   标题行固定、文件树滚动，收起时整体被 overflow 裁掉而不是撑破版面 */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+/* 工作区名 + 收起按钮：按钮常驻（只是安静），不以悬停为出现条件——找不到就谈不上「一键」 */
 .sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 8px 6px 4px 12px;
+}
+.sidebar-title-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
   color: var(--fg-secondary);
   letter-spacing: 0.05em;
-  padding: 10px 12px 6px;
 }
+.sidebar-toggle {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--fg-secondary);
+  opacity: 0.55;
+}
+.sidebar-toggle:hover { background: var(--bg-hover); color: var(--fg); opacity: 1; }
+/* 文件树自己滚，滚动条才不会把标题行也卷走 */
+.filetree { flex: 1; min-height: 0; overflow: auto; padding-bottom: 8px; }
+/* 侧栏与正文的分界线：5px 命中区、1px 占位（左右各 -2px 外边距），
+   视觉上仍是原来那条发丝线，但拖得动 */
+.sidebar-resizer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 5px;
+  margin: 0 -2px;
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  background: var(--border);
+  background-clip: content-box;
+  cursor: col-resize;
+  -webkit-app-region: no-drag;
+}
+/* 收起态：不再画线（线落在窗口最左边像条脏边），命中区改为 6px 且整条落在窗口内。
+   原先 5px 居中跨界、屏上只剩 3px，鼠标摸不到，更谈不上点开。
+   布局仍只吃 1px（6 - 5），正文列起点不变；悬停这条边即探出箭头，
+   箭头一现就接住后续命中（宽 18px），于是「移到左边 → 箭头冒出 → 点它」是一气呵成的。
+   代价是收起态抹掉正文最左 6px 的点击——与「这里是一条拉手」的语义相符。 */
+.sidebar-resizer[data-collapsed] {
+  flex-basis: 6px;
+  margin: 0 -5px 0 0;
+  border-left: none;
+  background: none;
+}
+.sidebar-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* 收起态唯一的路标：悬停分界线时探出的箭头，点它即展开 */
+.sidebar-grip {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: var(--bg-elevated);
+  color: var(--fg-secondary);
+  font-size: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+/* 收起态唯一的路标：悬停分界线时探出的箭头，点它即展开。
+   键盘 Tab 到分界线（收起态它是唯一能碰到侧栏的控件）时同样探出，免得盲按 */
+.sidebar-resizer[data-collapsed]:hover .sidebar-grip { display: flex; }
+.sidebar-resizer:focus-visible .sidebar-grip { display: flex; }
+/* 拖动中：指针掠出 5px 命中区也不变回箭头，文本也不被顺手选走 */
+html[data-resizing], html[data-resizing] * { cursor: col-resize !important; user-select: none !important; }
+/* 正文列：侧栏右侧那一栏，纵向排布（扉页或编辑器），自身不滚动，滚动交给里面的子块 */
+.content { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 /* 文件树 */
 .tree-node {
   display: flex;
@@ -107,7 +196,9 @@ body {
   margin: 0 6px;
 }
 .tree-node:hover { background: var(--bg-hover); }
-.chevron { display: inline-block; transition: transform 0.12s; color: var(--fg-secondary); width: 12px; }
+/* 名字长过侧栏宽度时截断：侧栏可拖窄，横向滚动条比省略号难看得多 */
+.tree-node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chevron { display: inline-block; transition: transform 0.12s; color: var(--fg-secondary); width: 12px; flex: 0 0 auto; }
 .chevron.open { transform: rotate(90deg); }
 
 /* 编辑器 */
@@ -212,8 +303,19 @@ html[data-outline-hidden] .vditor-outline { display: none !important; }
 .name-input:focus { outline: none; border-color: var(--accent); }
 
 /* ── 欢迎页：扉页 ─────────────────────────────────────────────── */
-
-.welcome { max-width: 460px; margin: 16vh auto 0; padding: 0 28px; }
+/* 占满正文列。留白用 padding 而非 margin：超出可视高度时是整块内容滚，
+   不会像 margin 那样在顶部被裁掉。子元素统一限宽，靠 align-items 居中，
+   这样标题、按钮、最近列表共用同一条版心线，也随列宽自适应 */
+.welcome {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16vh 28px 40px;
+}
+.welcome > * { width: 100%; max-width: 460px; }
 .welcome-title {
   font-family: var(--font-prose);
   font-size: 30px;
@@ -300,6 +402,7 @@ html[data-outline-hidden] .vditor-outline { display: none !important; }
 ::-webkit-scrollbar-thumb:hover { background: var(--fg-secondary); background-clip: content-box; }
 
 .btn:focus-visible, .tab:focus-visible, .tab-close:focus-visible, .tab-new:focus-visible,
+.sidebar-toggle:focus-visible,
 .welcome-recent-item:focus-visible, .context-menu-item:focus-visible, .name-input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

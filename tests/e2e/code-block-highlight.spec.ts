@@ -41,6 +41,11 @@ test('代码块就地高亮：展开出高亮副本、输入后重挂、落盘�
 
   // 2) 观感前提：围栏与并排渲染已隐藏，源码 pre 承载同一底板
   await expect(node.locator('.vditor-ir__preview')).toBeHidden()
+  // 2b) 源码层字形必须透明（否则与高亮副本重叠成「两层显示」；回归：主题注入同选择器 color 顶掉透明）
+  const srcColor = await node
+    .locator('.vditor-ir__marker--pre > code')
+    .evaluate((el) => getComputedStyle(el).color)
+  expect(srcColor).toBe('rgba(0, 0, 0, 0)')
 
   // 3) 逐像素对齐：整体盒 + 首字符盒 + 行数。
   //    （不能用 Range.getClientRects 逐行比：overlay 的高亮 span 会让 Range

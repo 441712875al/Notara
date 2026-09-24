@@ -47,5 +47,10 @@ export const s = {
     openFolder: '打开文件夹', newFile: '新建文件',
     recent: '最近的工作区', empty: '还没有最近的工作区',
   },
+  sidebar: {
+    collapse: '收起侧边栏',
+    expand: '展开侧边栏',
+    resize: '拖动调整宽度，双击收起',
+  },
   outline: { title: '大纲' },
 } as const
